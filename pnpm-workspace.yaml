@@ -1,0 +1,6 @@
+allowBuilds:
+  esbuild: true
+minimumReleaseAge: 10080 # 7 days, in minutes
+minimumReleaseAgeExclude:
+  # Our own package; every published version is newer than the 7-day cutoff
+  - kitty-motion

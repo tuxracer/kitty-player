@@ -1,0 +1,46 @@
+{
+  "name": "kitty-player",
+  "version": "0.1.0",
+  "description": "Terminal video player. Ink UI with a kitty-motion video panel over Kitty graphics Unicode placeholders.",
+  "type": "module",
+  "license": "MIT",
+  "engines": { "node": ">=24.0.0" },
+  "packageManager": "pnpm@11.10.0",
+  "bin": { "kitty-player": "./dist/cli.js" },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js", "default": "./dist/index.js" } },
+  "files": ["dist", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc --noEmit && tsup --clean --entry.cli=src/cli/index.tsx --entry.index=src/index.ts --format esm --dts",
+    "prepack": "pnpm run build",
+    "dev": "tsx src/cli/index.tsx",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test:run"
+  },
+  "dependencies": {
+    "@inkjs/ui": "^2.0.0",
+    "ink": "^5.2.1",
+    "kitty-motion": "^1.2.0",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^24.0.0",
+    "@types/react": "^18.3.31",
+    "@typescript-eslint/eslint-plugin": "8.62.0",
+    "@typescript-eslint/parser": "8.62.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-prefer-arrow-functions": "3.9.1",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "ink-testing-library": "^4.0.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.22.4",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
