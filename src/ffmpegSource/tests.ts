@@ -7,9 +7,14 @@ import { promisify } from 'node:util';
 import ffmpegPath from 'ffmpeg-static';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import type { FrameSource } from '../frameSource/index.ts';
 import {
   FfmpegSourceError,
+  MAX_DECODE_HEIGHT,
+  MAX_DECODE_WIDTH,
+  RGB_CHANNELS,
   computeDecodeSize,
+  createFfmpegSource,
   isFfmpegSourceError,
   probeFile,
 } from './index.ts';
@@ -129,5 +134,66 @@ describe('probeFile', () => {
 
   it('rejects an audio-only file with NO_VIDEO_STREAM', async () => {
     await expectCode(probeFile(audioOnly), 'NO_VIDEO_STREAM');
+  });
+});
+
+// The source reuses buffers, so successful grabs snapshot a copy. Decoding is
+// async and getFrameAt never blocks, so poll until the frame lands.
+const waitForFrame = async (source: FrameSource, timeMs: number): Promise<Uint8Array> => {
+  const deadlineMs = Date.now() + 5_000;
+  while (Date.now() < deadlineMs) {
+    const frame = await source.getFrameAt(timeMs);
+    if (frame !== null) {
+      return Uint8Array.from(frame);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error(`no frame arrived at ${timeMs}ms within 5s`);
+};
+
+describe('createFfmpegSource', () => {
+  it('opens with decode dimensions, rgb24, duration, and fps', async () => {
+    const source = createFfmpegSource({ filePath: smallVideo });
+    const info = await source.open();
+    expect(info.width).toBe(64);
+    expect(info.height).toBe(36);
+    expect(info.colorSpace).toBe('rgb24');
+    expect(info.fps).toBe(10);
+    expect(info.durationMs).toBeGreaterThanOrEqual(1_900);
+    await source.close();
+  });
+
+  it('rejects open() for a missing file with FILE_NOT_FOUND', async () => {
+    const source = createFfmpegSource({ filePath: join(fixtureDir, 'missing.mp4') });
+    await expectCode(source.open(), 'FILE_NOT_FOUND');
+  });
+
+  it('serves frames of width * height * 3 bytes that change over time', async () => {
+    const source = createFfmpegSource({ filePath: smallVideo });
+    const info = await source.open();
+    const first = await waitForFrame(source, 0);
+    expect(first.length).toBe(info.width * info.height * RGB_CHANNELS);
+    const later = await waitForFrame(source, 1_500);
+    expect(later).not.toEqual(first);
+    await source.close();
+  });
+
+  it('downscales large sources to the cap and serves matching buffers', async () => {
+    const source = createFfmpegSource({ filePath: largeVideo });
+    const info = await source.open();
+    expect(info.width).toBe(MAX_DECODE_WIDTH);
+    expect(info.height).toBe(MAX_DECODE_HEIGHT);
+    const frame = await waitForFrame(source, 0);
+    expect(frame.length).toBe(MAX_DECODE_WIDTH * MAX_DECODE_HEIGHT * RGB_CHANNELS);
+    await source.close();
+  });
+
+  it('returns null past the end of the file', async () => {
+    const source = createFfmpegSource({ filePath: smallVideo });
+    await source.open();
+    // 2 s at 10 fps: the last frame sits at 1900 ms
+    await waitForFrame(source, 1_900);
+    await expect(source.getFrameAt(3_000)).resolves.toBeNull();
+    await source.close();
   });
 });

@@ -1,3 +1,6 @@
+import type { ChildProcessByStdio } from 'node:child_process';
+import type { Readable } from 'node:stream';
+
 export interface FfmpegSourceOptions {
   /** Path to the video file to decode */
   filePath: string;
@@ -36,4 +39,16 @@ export interface DecodedFrame {
   timestampMs: number;
   /** Raw rgb24 bytes, width * height * 3 */
   data: Uint8Array;
+}
+
+/** One live ffmpeg decode process and its readahead state */
+export interface Decoder {
+  /** Decoded frames ahead of playback, oldest first */
+  frames: DecodedFrame[];
+  /** Timestamp the next frame off the pipe will carry */
+  nextTimestampMs: number;
+  /** True when this decoder was killed on purpose (seek, respawn, close) */
+  killed: boolean;
+  /** The ffmpeg child process, stdout piped for frames, stderr piped for errors */
+  child: ChildProcessByStdio<null, Readable, Readable>;
 }
