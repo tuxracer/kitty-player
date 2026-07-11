@@ -82,4 +82,6 @@ const screen = await createScreen({
 
 // exitOnCtrlC: false so the Player's own input handler can dispose the Screen
 // and close the source before Ink tears the render down.
-render(<Video screen={screen} source={source} info={info} />, { exitOnCtrlC: false });
+render(<Video screen={screen} source={source} info={info} autoPlay loop />, {
+  exitOnCtrlC: false,
+});
