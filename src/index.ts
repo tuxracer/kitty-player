@@ -9,8 +9,8 @@
  * name ambiguous and silently drop it, so per-module duplicates like
  * MS_PER_SECOND stay internal.
  */
-export { Player } from './Player/index.tsx';
-export type { PlayerProps, PlayerScreen } from './Player/index.tsx';
+export { Player, Video } from './Video/index.tsx';
+export type { PlayerProps, PlayerScreen } from './Video/index.tsx';
 export {
   HELP_TEXT,
   PAUSE_GLYPH,
@@ -20,7 +20,7 @@ export {
   PROGRESS_BAR_WIDTH,
   RESIZE_DEBOUNCE_MS,
   SEEK_STEP_MS,
-} from './Player/index.tsx';
+} from './Video/index.tsx';
 
 export type { FrameSource, FrameSourceInfo } from './frameSource/index.ts';
 

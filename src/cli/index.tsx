@@ -11,7 +11,7 @@ import { createScreen, detectKittyUnicodePlaceholderSupport } from 'kitty-motion
 
 import { createFfmpegSource, isFfmpegSourceError } from '../ffmpegSource/index.ts';
 import type { FrameSource, FrameSourceInfo } from '../frameSource/index.ts';
-import { Player } from '../Player/index.tsx';
+import { Video } from '../Video/index.tsx';
 import { computePanelRegion } from '../playerLayout/index.ts';
 import { createProceduralSource } from '../proceduralSource/index.ts';
 import { EXIT_OK, EXIT_USAGE, HELP_TEXT, UNSUPPORTED_TERMINAL_MESSAGE, VERSION } from './consts.ts';
@@ -82,4 +82,4 @@ const screen = await createScreen({
 
 // exitOnCtrlC: false so the Player's own input handler can dispose the Screen
 // and close the source before Ink tears the render down.
-render(<Player screen={screen} source={source} info={info} />, { exitOnCtrlC: false });
+render(<Video screen={screen} source={source} info={info} />, { exitOnCtrlC: false });

@@ -22,12 +22,12 @@ export * from './consts.ts';
 export * from './types.ts';
 
 /**
- * Ink video player component. kitty-motion owns the video pixels (pushed into
+ * Ink video component. kitty-motion owns the video pixels (pushed into
  * placeholder cells that Ink lays out as ordinary text). React state only
  * mirrors what the chrome displays, so Ink redraws about once per second
  * while frames update at the source frame rate.
  */
-export const Player = ({ screen, source, info }: PlayerProps): ReactElement => {
+export const Video = ({ screen, source, info }: PlayerProps): ReactElement => {
   const { exit } = useApp();
   const { stdout } = useStdout();
 
@@ -195,3 +195,6 @@ export const Player = ({ screen, source, info }: PlayerProps): ReactElement => {
     </Box>
   );
 };
+
+/** Backwards-compatible alias, the component was originally exported as Player */
+export const Player = Video;
