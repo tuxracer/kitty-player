@@ -6,9 +6,14 @@ import type { ManagedScreenOptions, PlayerScreen } from './types.ts';
  * True when this process can display video placeholders: stdout is a TTY and
  * the terminal advertises kitty unicode placeholder support. Both checks are
  * synchronous and env-based, no terminal round trip.
+ *
+ * `isTTY` is compared with `=== true` rather than used directly: the Node
+ * typings declare it as a plain `boolean`, but at runtime it is `undefined`
+ * (not `false`) off a TTY, so a bare `&&` would leak `undefined` out of a
+ * function typed to return `boolean`.
  */
 export const canDisplayVideo = (): boolean =>
-  process.stdout.isTTY && detectKittyUnicodePlaceholderSupport();
+  process.stdout.isTTY === true && detectKittyUnicodePlaceholderSupport();
 
 /**
  * Construct a Screen synchronously with every probe-dependent option forced,
