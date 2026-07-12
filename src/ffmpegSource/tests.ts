@@ -253,6 +253,25 @@ describe('createFfmpegSource', () => {
     await fresh.close();
   });
 
+  it('spawns no decoder when close lands during open', async () => {
+    // largeVideo blocks ffmpeg on its stdout pipe (15 MB of frames), so a
+    // leaked decoder would still be alive and findable by its unique
+    // fixture path in the process table
+    const source = createFfmpegSource({ filePath: largeVideo });
+    const opening = source.open();
+    await source.close();
+    await opening;
+    await expect(source.getFrameAt(0)).resolves.toBeNull();
+    let leakedDecoder = true;
+    try {
+      await execFileAsync('pgrep', ['-f', largeVideo]);
+    } catch {
+      // pgrep exits nonzero when nothing matches
+      leakedDecoder = false;
+    }
+    expect(leakedDecoder).toBe(false);
+  });
+
   it('resolves null from getFrameAt after close, and close is idempotent', async () => {
     const source = createFfmpegSource({ filePath: smallVideo });
     await source.open();

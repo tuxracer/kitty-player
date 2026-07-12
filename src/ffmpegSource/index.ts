@@ -139,6 +139,11 @@ export const createFfmpegSource = (options: FfmpegSourceOptions): FrameSource =>
       durationMs: probe.durationMs,
       fps: probe.fps,
     };
+    // A close() that lands during the probe await must not leak a decoder
+    // process that nothing will ever kill
+    if (closed) {
+      return info;
+    }
     decoder = spawnDecoder(0, info);
     return info;
   };
