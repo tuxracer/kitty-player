@@ -1,4 +1,4 @@
-# kitty-player
+# kitty-video-player
 
 A terminal video player. The UI (title, progress bar, controls) is an [Ink](https://github.com/vadimdemedes/ink) app, and the video pixels are rendered by [kitty-motion](https://github.com/tuxracer/kitty-motion) through Kitty graphics Unicode placeholders. The placeholder cells are ordinary text that Ink lays out, so the picture and the React-driven UI share the terminal without stepping on each other.
 
@@ -14,15 +14,15 @@ A terminal video player. The UI (title, progress bar, controls) is an [Ink](http
 ## Install and run
 
 ```sh
-npx kitty-player
-npx kitty-player movie.mp4
+npx kitty-video-player
+npx kitty-video-player movie.mp4
 ```
 
 Or install globally:
 
 ```sh
-npm install -g kitty-player
-kitty-player
+npm install -g kitty-video-player
+kitty-video-player
 ```
 
 For development from a checkout:
@@ -34,7 +34,7 @@ pnpm dev
 
 ## Current status
 
-kitty-player plays video files (`kitty-player movie.mp4`) through a bundled ffmpeg,
+kitty-video-player plays video files (`kitty-video-player movie.mp4`) through a bundled ffmpeg,
 decoded as a stream at a capped resolution with seek and pause. Audio is not
 played yet. Running with no arguments plays the built-in procedural demo clip,
 a hue-cycling ball moving on a Lissajous path over a 20 second loop.
@@ -64,7 +64,7 @@ The technical details (startup sequence, rendering path, playback clock, the
 
 ## Embedding in your own Ink app
 
-kitty-player exports a `Video` component with an API shaped like the HTML5
+kitty-video-player exports a `Video` component with an API shaped like the HTML5
 `<video>` element. Mount it anywhere in your Ink tree. It sizes itself to
 `width` x `height` terminal cells and letterboxes the video inside that box.
 No setup call is needed. The component never reads stdin, so it cannot fight
@@ -73,8 +73,8 @@ Ink for input.
 ```tsx
 import { render, Text, useInput } from 'ink';
 import { useRef } from 'react';
-import { Video } from 'kitty-player';
-import type { VideoRef } from 'kitty-player';
+import { Video } from 'kitty-video-player';
+import type { VideoRef } from 'kitty-video-player';
 
 const App = () => {
   const video = useRef<VideoRef>(null);
@@ -117,7 +117,7 @@ The package also exports the pieces for embedding a video panel in your own Ink 
 ```tsx
 import { render } from 'ink';
 import { createScreen } from 'kitty-motion';
-import { computePanelRegion, createProceduralSource, Video } from 'kitty-player';
+import { computePanelRegion, createProceduralSource, Video } from 'kitty-video-player';
 
 const source = createProceduralSource();
 const info = await source.open();

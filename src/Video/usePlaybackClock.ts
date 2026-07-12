@@ -45,7 +45,7 @@ export const usePlaybackClock = ({
       callbacksRef.current.onError?.(error);
       if (stderrNote && !sourceErrorNotedRef.current) {
         sourceErrorNotedRef.current = true;
-        process.stderr.write('kitty-player: frame source error, playback continues\n');
+        process.stderr.write('kitty-video-player: frame source error, playback continues\n');
       }
     },
     [stderrNote],

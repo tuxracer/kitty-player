@@ -1,11 +1,11 @@
-# kitty-player technical reference
+# kitty-video-player technical reference
 
-How kitty-player works internally. For installation, controls, and CLI flags,
+How kitty-video-player works internally. For installation, controls, and CLI flags,
 see the [README](../README.md).
 
 ## Overview
 
-kitty-player has two rendering paths. The full player is an
+kitty-video-player has two rendering paths. The full player is an
 [Ink](https://github.com/vadimdemedes/ink) app whose video pixels are drawn by
 [kitty-motion](https://github.com/tuxracer/kitty-motion) through Kitty graphics
 Unicode placeholders. The placeholder cells are ordinary text that Ink lays
