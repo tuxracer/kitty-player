@@ -144,7 +144,7 @@ export interface VideoBaseProps extends PlaybackCallbacks {
   muted?: boolean;
   /** Render the one-row progress/time bar below the video */
   controls?: boolean;
-  /** Bind the CLI key set: space play/pause, arrows seek, q/ctrl-c quit */
+  /** Bind the CLI key set: space play/pause, arrows seek, m mute, q/ctrl-c quit */
   keyboard?: boolean;
   /** Render the title row above the video */
   title?: boolean;

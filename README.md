@@ -35,17 +35,21 @@ pnpm dev
 ## Current status
 
 kitty-video-player plays video files (`kitty-video-player movie.mp4`) through a bundled ffmpeg,
-decoded as a stream at a capped resolution with seek and pause. Audio is not
-played yet. Running with no arguments plays the built-in procedural demo clip,
-a hue-cycling ball moving on a Lissajous path over a 20 second loop.
+decoded as a stream at a capped resolution with seek and pause. Files play
+their audio track too, through a second bundled ffmpeg process and a native
+audio device (audify/RtAudio), and degrade to silent video when no audio
+output device is available. Running with no arguments plays the built-in
+procedural demo clip, a hue-cycling ball moving on a Lissajous path over a
+20 second loop (silent, it has no audio track).
 
 ## Controls
 
-| Key              | Action           |
-| ---------------- | ---------------- |
-| space            | play or pause    |
-| left/right arrow | seek 5 seconds   |
-| q or Ctrl-C      | quit             |
+| Key              | Action                |
+| ---------------- | --------------------- |
+| space            | play or pause         |
+| left/right arrow | seek 5 seconds        |
+| m                | mute or unmute audio  |
+| q or Ctrl-C      | quit                  |
 
 ## CLI flags
 
@@ -55,6 +59,7 @@ a hue-cycling ball moving on a Lissajous path over a 20 second loop.
 | `-h`, `--help`         | print help and exit                                                                                                                                                                                                              |
 | `-v`, `--version`      | print the version and exit                                                                                                                                                                                                       |
 | `--fallback`           | play without the Ink UI using the best available renderer (kitty graphics without controls when supported, otherwise a cell renderer)                                                                                            |
+| `--muted`              | start playback with audio muted (the m key toggles it back)                                                                                                                                                                      |
 | `--render-mode <mode>` | force a render mode: kitty, half-block, cell-background, emoji, or ascii (kitty alone forces the full player, cell modes force the fallback player, and `--fallback --render-mode kitty` forces kitty graphics without controls) |
 
 ## How it works
@@ -112,7 +117,7 @@ way the CLI does.
 
 ## Library use
 
-The package also exports the pieces for embedding a video panel in your own Ink app: `Video`, the `FrameSource`/`FrameSourceInfo` contract, `createProceduralSource`, `createFfmpegSource`, `computePanelRegion`, and `formatTime`.
+The package also exports the pieces for embedding a video panel in your own Ink app: `Video`, the `FrameSource`/`FrameSourceInfo` contract, `createProceduralSource`, `createFfmpegSource`, `computePanelRegion`, `formatTime`, and the audio pieces, `createFfmpegAudioPlayer` and the `AudioPlayer`/`AudioPlayerInfo` contract.
 
 ```tsx
 import { render } from 'ink';

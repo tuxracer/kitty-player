@@ -1,6 +1,6 @@
 {
   "name": "kitty-video-player",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Terminal video player. Ink UI with a kitty-motion video panel over Kitty graphics Unicode placeholders.",
   "type": "module",
   "license": "MIT",

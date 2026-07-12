@@ -30,6 +30,7 @@ export type {
 } from './Video/index.tsx';
 export { VideoError, isVideoError } from './Video/index.tsx';
 export {
+  DRIFT_RESYNC_THRESHOLD_MS,
   HELP_TEXT,
   LOADING_DELAY_MS,
   LOADING_TEXT,
@@ -43,6 +44,22 @@ export {
 } from './Video/index.tsx';
 
 export type { FrameSource, FrameSourceInfo } from './frameSource/index.ts';
+
+export type { AudioPlayer, AudioPlayerInfo } from './audioPlayer/index.ts';
+
+export { createFfmpegAudioPlayer, createRtAudioDevice, probeHasAudio } from './ffmpegAudioPlayer/index.ts';
+export type {
+  AudioDevice,
+  AudioDeviceOptions,
+  CreateAudioDevice,
+  FfmpegAudioPlayerOptions,
+} from './ffmpegAudioPlayer/index.ts';
+export {
+  AUDIO_QUEUE_CAP_MS,
+  CHANNELS,
+  DEVICE_FRAME_SIZE,
+  SAMPLE_RATE,
+} from './ffmpegAudioPlayer/index.ts';
 
 export { createProceduralSource } from './proceduralSource/index.ts';
 export type { ProceduralSourceOptions } from './proceduralSource/index.ts';
