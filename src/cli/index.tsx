@@ -11,8 +11,10 @@ import { render } from 'ink';
 import { createScreen, detectCellPixelSize } from 'kitty-motion';
 import type { RenderMode } from 'kitty-motion';
 
-import { createFfmpegSource, isFfmpegSourceError } from '../ffmpegSource/index.ts';
+import type { AudioPlayer } from '../audioPlayer/index.ts';
 import { createFallbackScreen, resolveFallbackRenderMode, runFallbackPlayer } from '../fallbackPlayer/index.ts';
+import { createFfmpegAudioPlayer } from '../ffmpegAudioPlayer/index.ts';
+import { createFfmpegSource, isFfmpegSourceError } from '../ffmpegSource/index.ts';
 import type { FrameSource, FrameSourceInfo } from '../frameSource/index.ts';
 import { Video } from '../Video/index.tsx';
 import { computePanelRegion } from '../playerLayout/index.ts';
@@ -109,6 +111,20 @@ try {
   process.exit(EXIT_USAGE);
 }
 
+// Only file playback has audio. The procedural demo is silent, and a file
+// whose audio cannot play (no stream, no device) resolves hasAudio false
+// and is closed again, so the players below see null and skip every call.
+let audio: AudioPlayer | null = null;
+if (args.file !== undefined) {
+  const audioPlayer = createFfmpegAudioPlayer({ filePath: args.file });
+  const { hasAudio } = await audioPlayer.open();
+  if (hasAudio) {
+    audio = audioPlayer;
+  } else {
+    await audioPlayer.close();
+  }
+}
+
 // Fallback mode never touches Ink. The renderer owns the whole screen
 // (kitty at full quality or a cell renderer) and produces no placeholder
 // rows to lay out. The playback loop resolves when the user quits, with
@@ -127,6 +143,8 @@ if (fallbackMode !== undefined) {
     source,
     info,
     input: process.stdin,
+    audio,
+    muted: args.muted,
   });
   process.exit(EXIT_OK);
 }
@@ -156,6 +174,18 @@ const screen = await createScreen({
 // exitOnCtrlC: false so Video's own input handler can dispose the Screen
 // and close the source before Ink tears the render down.
 render(
-  <Video screen={screen} source={source} info={info} autoPlay loop controls keyboard title help />,
+  <Video
+    screen={screen}
+    source={source}
+    info={info}
+    audio={audio ?? undefined}
+    muted={args.muted}
+    autoPlay
+    loop
+    controls
+    keyboard
+    title
+    help
+  />,
   { exitOnCtrlC: false },
 );

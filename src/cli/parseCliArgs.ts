@@ -27,6 +27,7 @@ export const parseCliArgs = (argv: string[]): ParsedCliArgs => {
         help: { type: 'boolean', short: 'h' },
         version: { type: 'boolean', short: 'v' },
         fallback: { type: 'boolean' },
+        muted: { type: 'boolean' },
         'render-mode': { type: 'string' },
       },
     });
@@ -49,7 +50,11 @@ export const parseCliArgs = (argv: string[]): ParsedCliArgs => {
         message: `unexpected extra arguments: ${positionals.slice(1).join(' ')}`,
       };
     }
-    const play: PlayAction = { action: 'play', fallback: values.fallback === true };
+    const play: PlayAction = {
+      action: 'play',
+      fallback: values.fallback === true,
+      muted: values.muted === true,
+    };
     if (positionals.length === 1) {
       play.file = positionals[0];
     }

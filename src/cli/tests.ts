@@ -12,7 +12,7 @@ import { isRenderMode } from './types.ts';
 
 describe('parseCliArgs', () => {
   it('returns play when no arguments are given', () => {
-    expect(parseCliArgs([])).toEqual({ action: 'play', fallback: false });
+    expect(parseCliArgs([])).toEqual({ action: 'play', fallback: false, muted: false });
   });
 
   it('returns help for --help', () => {
@@ -36,11 +36,12 @@ describe('parseCliArgs', () => {
       action: 'play',
       file: 'movie.mp4',
       fallback: false,
+      muted: false,
     });
   });
 
   it('returns play with fallback for --fallback', () => {
-    expect(parseCliArgs(['--fallback'])).toEqual({ action: 'play', fallback: true });
+    expect(parseCliArgs(['--fallback'])).toEqual({ action: 'play', fallback: true, muted: false });
   });
 
   it('combines --fallback with a file argument', () => {
@@ -48,6 +49,7 @@ describe('parseCliArgs', () => {
       action: 'play',
       file: 'movie.mp4',
       fallback: true,
+      muted: false,
     });
   });
 
@@ -57,10 +59,28 @@ describe('parseCliArgs', () => {
       expect(parseCliArgs(['--render-mode', mode])).toEqual({
         action: 'play',
         fallback: false,
+        muted: false,
         renderMode: mode,
       });
     },
   );
+
+  it('parses --muted into the play action', () => {
+    expect(parseCliArgs(['--muted'])).toEqual({ action: 'play', fallback: false, muted: true });
+  });
+
+  it('defaults muted to false', () => {
+    expect(parseCliArgs([])).toEqual({ action: 'play', fallback: false, muted: false });
+  });
+
+  it('combines --muted with a file argument', () => {
+    expect(parseCliArgs(['--muted', 'movie.mp4'])).toEqual({
+      action: 'play',
+      fallback: false,
+      muted: true,
+      file: 'movie.mp4',
+    });
+  });
 
   it('returns usage-error for an invalid --render-mode value naming the valid modes', () => {
     const result = parseCliArgs(['--render-mode', 'bogus']);
@@ -75,6 +95,7 @@ describe('parseCliArgs', () => {
     expect(parseCliArgs(['--fallback', '--render-mode', 'kitty'])).toEqual({
       action: 'play',
       fallback: true,
+      muted: false,
       renderMode: 'kitty',
     });
   });

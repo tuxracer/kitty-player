@@ -37,6 +37,8 @@ Options:
                           renderer (kitty graphics without controls when
                           the terminal supports them, otherwise a cell
                           renderer)
+      --muted             start playback with audio muted (the m key
+                          toggles it back)
       --render-mode <mode>
                           force a render mode: kitty, half-block,
                           cell-background, emoji, or ascii. kitty alone
@@ -47,6 +49,7 @@ Options:
 Controls:
   space                   play or pause
   left/right arrow        seek 5 seconds
+  m                       mute or unmute audio
   q or Ctrl-C             quit
   (the same keys work in fallback mode, there is just no on-screen UI)
 

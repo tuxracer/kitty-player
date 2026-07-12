@@ -10,6 +10,8 @@ export interface PlayAction {
   fallback: boolean;
   /** Forced render mode (--render-mode). kitty forces the full player, cell modes force the fallback player */
   renderMode?: RenderMode;
+  /** Start playback with audio muted (--muted) */
+  muted: boolean;
 }
 
 /** True when value is one of kitty-motion's render mode names */
