@@ -90,6 +90,15 @@ the video, so the picture participates in Ink layout like any other text.
   whole second changes. Ink redraws roughly once per second, for the time
   readout and progress bar.
 
+The clock also drives an optional `AudioPlayer`. `playFrom` and `pause` fire
+at the same transitions as the video (play, pause, seek, loop wrap). The
+video clock stays master. Once per displayed second it compares the audio
+player's reported position against its own elapsed time and calls `playFrom`
+again if they have drifted more than `DRIFT_RESYNC_THRESHOLD_MS` (250 ms)
+apart. Audio problems never interrupt playback. A missing audio track, a
+missing output device, or a decoder crash all degrade to silent video
+instead of an error.
+
 ### Resize handling
 
 On terminal resize Video debounces the stdout `resize` event
@@ -103,8 +112,8 @@ change with the region, so cached rows go stale.
 `src/fallbackPlayer/` handles terminals that cannot run the full Ink player.
 `createFallbackScreen` builds a probe-free Screen at the resolved render mode
 (full-screen, autoResize), and `runFallbackPlayer` is a React-free port of
-the playback clock with raw-stdin keys (space, arrows, q/Ctrl-C) and no Ink
-UI. It never renders Ink.
+the playback clock with raw-stdin keys (space, arrows, m mute, q/Ctrl-C) and
+no Ink UI. It never renders Ink.
 
 ## The FrameSource contract
 
@@ -167,6 +176,9 @@ system install is needed:
   Screen construction in `managedScreen.ts`, and the two-mode props union
   (external resources vs. self-managed)
 - `src/frameSource/` - the `FrameSource`/`FrameSourceInfo` contract
+- `src/audioPlayer/` - the `AudioPlayer`/`AudioPlayerInfo` contract
+- `src/ffmpegAudioPlayer/` - the file audio decoder, one ffmpeg process per
+  `playFrom` decoding into an audify (RtAudio) output device
 - `src/fallbackPlayer/` - `resolveFallbackRenderMode`, `createFallbackScreen`,
   and `runFallbackPlayer`
 - `src/proceduralSource/` - the built-in demo source
