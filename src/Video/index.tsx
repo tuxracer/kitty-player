@@ -43,6 +43,7 @@ export const Video = forwardRef<VideoRef, VideoProps>((props, ref): ReactElement
   const {
     autoPlay = false,
     loop = false,
+    muted: initialMuted = false,
     controls = false,
     keyboard = false,
     title = false,
@@ -79,6 +80,14 @@ export const Video = forwardRef<VideoRef, VideoProps>((props, ref): ReactElement
   const [placeholderRows, setPlaceholderRows] = useState<string[]>(() =>
     props.screen === undefined ? [] : props.screen.getPlaceholderRows(),
   );
+
+  const [muted, setMuted] = useState(initialMuted);
+
+  // The muted state is the source of truth, the audio player follows it.
+  // Also reapplies after the audio resource itself changes (managed mode).
+  useEffect(() => {
+    audio?.setMuted(muted);
+  }, [audio, muted]);
 
   const clock = usePlaybackClock({
     screen,
@@ -118,6 +127,12 @@ export const Video = forwardRef<VideoRef, VideoProps>((props, ref): ReactElement
       get ended(): boolean {
         return clock.ended;
       },
+      get muted(): boolean {
+        return muted;
+      },
+      set muted(value: boolean) {
+        setMuted(value);
+      },
       get duration(): number {
         return info === null ? Number.NaN : info.durationMs / MS_PER_SECOND;
       },
@@ -131,7 +146,7 @@ export const Video = forwardRef<VideoRef, VideoProps>((props, ref): ReactElement
     // clock is a new object every render (usePlaybackClock does not memoize
     // its return), so this dependency keeps the handle fresh. Memoizing the
     // hook's return instead would stale paused/ended here.
-    [clock, info],
+    [clock, info, muted],
   );
 
   // HTML5 fires loadedmetadata once dimensions and duration are known. In
@@ -164,6 +179,10 @@ export const Video = forwardRef<VideoRef, VideoProps>((props, ref): ReactElement
       }
       if (input === ' ') {
         togglePlay();
+        return;
+      }
+      if (input === 'm') {
+        setMuted((value) => !value);
         return;
       }
       if (key.leftArrow) {

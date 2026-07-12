@@ -768,3 +768,51 @@ describe('Video audio wiring', () => {
     unmount();
   });
 });
+
+describe('Video mute', () => {
+  it('applies the initial muted prop to the audio player', async () => {
+    const { harness, source, info } = await setup();
+    const audio = createFakeAudio();
+    const { unmount } = render(
+      <Video screen={harness.screen} source={source} info={info} audio={audio.audio} autoPlay keyboard muted />,
+    );
+    await flush();
+    expect(audio.mutedValues[0]).toBe(true);
+    unmount();
+  });
+
+  it('toggles mute on the m key', async () => {
+    const { harness, source, info } = await setup();
+    const audio = createFakeAudio();
+    const { stdin, unmount } = render(
+      <Video screen={harness.screen} source={source} info={info} audio={audio.audio} autoPlay keyboard />,
+    );
+    await flush();
+    expect(audio.mutedValues.at(-1)).toBe(false);
+    stdin.write('m');
+    await flush();
+    expect(audio.mutedValues.at(-1)).toBe(true);
+    stdin.write('m');
+    await flush();
+    expect(audio.mutedValues.at(-1)).toBe(false);
+    unmount();
+  });
+
+  it('exposes muted on the ref handle, get and set', async () => {
+    const { harness, source, info } = await setup();
+    const audio = createFakeAudio();
+    const ref = createRef<VideoRef>();
+    const { unmount } = render(
+      <Video ref={ref} screen={harness.screen} source={source} info={info} audio={audio.audio} autoPlay />,
+    );
+    await flush();
+    expect(ref.current?.muted).toBe(false);
+    if (ref.current) {
+      ref.current.muted = true;
+    }
+    await flush();
+    expect(ref.current?.muted).toBe(true);
+    expect(audio.mutedValues.at(-1)).toBe(true);
+    unmount();
+  });
+});

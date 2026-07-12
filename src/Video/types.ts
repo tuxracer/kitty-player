@@ -78,6 +78,8 @@ export interface VideoRef {
   currentTime: number;
   readonly paused: boolean;
   readonly ended: boolean;
+  /** Audio muted state, get/set (setting silences or restores the audio device) */
+  muted: boolean;
   /** Duration in seconds, NaN before metadata loads */
   readonly duration: number;
   /** Source width in pixels, 0 before metadata loads */
@@ -136,6 +138,8 @@ export interface VideoBaseProps extends PlaybackCallbacks {
   autoPlay?: boolean;
   /** Wrap to the start at the end instead of stopping (HTML5 default: off) */
   loop?: boolean;
+  /** Start with audio muted (HTML5 default: off). Toggle at runtime through the ref handle or the m key */
+  muted?: boolean;
   /** Render the one-row progress/time bar below the video */
   controls?: boolean;
   /** Bind the CLI key set: space play/pause, arrows seek, q/ctrl-c quit */

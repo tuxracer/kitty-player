@@ -23,7 +23,7 @@ export const PLAY_GLYPH = '▶';
 export const PAUSE_GLYPH = '⏸';
 
 /** Help line under the controls */
-export const HELP_TEXT = 'space play/pause · ←/→ seek 5s · q quit';
+export const HELP_TEXT = 'space play/pause · ←/→ seek 5s · m mute · q quit';
 
 /** Wait this long before showing the loading note, so fast opens never flash it */
 export const LOADING_DELAY_MS = 1_000;
