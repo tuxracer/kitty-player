@@ -7,6 +7,8 @@ export interface ResolveFallbackRenderModeOptions {
   probeKittyGraphics?: () => Promise<boolean>;
   /** Cell mode chooser (detectCellRenderMode in production) */
   detectCellMode?: () => CellRenderMode;
+  /** Multiplexed-session check (isMultiplexedSession in production) */
+  isMultiplexed?: () => boolean;
 }
 
 /**

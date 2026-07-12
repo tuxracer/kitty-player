@@ -1,4 +1,9 @@
-import { detectCellRenderMode, detectKittyGraphicsSupport, Screen } from 'kitty-motion';
+import {
+  detectCellRenderMode,
+  detectKittyGraphicsSupport,
+  isMultiplexedSession,
+  Screen,
+} from 'kitty-motion';
 import type { RenderMode } from 'kitty-motion';
 
 import type { FrameSourceInfo } from '../frameSource/index.ts';
@@ -17,23 +22,32 @@ export * from './consts.ts';
 export * from './types.ts';
 
 /**
- * Pick the fallback player's render mode. A forced mode wins untouched.
- * Otherwise the kitty graphics probe decides. Terminals like iTerm2
- * implement the graphics protocol without Unicode placeholders, so they get
- * full-quality kitty rendering (only the Ink controls need placeholders).
- * When the probe fails the auto-detected cell mode is used (cell-background
- * on Terminal.app, half-block elsewhere). The probe reads stdin, so this
- * must run before Ink takes stdin over.
+ * Pick the fallback player's render mode. A forced mode wins untouched,
+ * which keeps --fallback --render-mode kitty usable inside tmux with
+ * allow-passthrough. Otherwise a multiplexed session (tmux or GNU screen)
+ * resolves straight to the auto-detected cell mode without probing, because
+ * the multiplexer swallows the graphics escapes even when the outer terminal
+ * is kitty and the probe's environment fast path would report support.
+ * Outside a multiplexer the kitty graphics probe decides. Terminals like
+ * iTerm2 implement the graphics protocol without Unicode placeholders, so
+ * they get full-quality kitty rendering (only the Ink controls need
+ * placeholders). When the probe fails the auto-detected cell mode is used
+ * (cell-background on Terminal.app, half-block elsewhere). The probe reads
+ * stdin, so this must run before Ink takes stdin over.
  */
 export const resolveFallbackRenderMode = async (
   forced?: RenderMode,
   {
     probeKittyGraphics = detectKittyGraphicsSupport,
     detectCellMode = detectCellRenderMode,
+    isMultiplexed = isMultiplexedSession,
   }: ResolveFallbackRenderModeOptions = {},
 ): Promise<RenderMode> => {
   if (forced !== undefined) {
     return forced;
+  }
+  if (isMultiplexed()) {
+    return detectCellMode();
   }
   return (await probeKittyGraphics()) ? 'kitty' : detectCellMode();
 };

@@ -324,4 +324,26 @@ describe('resolveFallbackRenderMode', () => {
       }),
     ).resolves.toBe('cell-background');
   });
+
+  it('resolves the cell mode without probing inside a multiplexed session', async () => {
+    const probeKittyGraphics = vi.fn(() => Promise.resolve(true));
+    await expect(
+      resolveFallbackRenderMode(undefined, {
+        probeKittyGraphics,
+        detectCellMode: () => 'half-block',
+        isMultiplexed: () => true,
+      }),
+    ).resolves.toBe('half-block');
+    expect(probeKittyGraphics).not.toHaveBeenCalled();
+  });
+
+  it('returns forced kitty untouched even inside a multiplexed session', async () => {
+    const probeKittyGraphics = vi.fn(() => Promise.resolve(false));
+    const isMultiplexed = vi.fn(() => true);
+    await expect(
+      resolveFallbackRenderMode('kitty', { probeKittyGraphics, isMultiplexed }),
+    ).resolves.toBe('kitty');
+    expect(probeKittyGraphics).not.toHaveBeenCalled();
+    expect(isMultiplexed).not.toHaveBeenCalled();
+  });
 });

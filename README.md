@@ -10,12 +10,12 @@ A terminal video player. The UI (title, progress bar, controls) is an [Ink](http
   interactive terminals kitty-player offers to play without on-screen
   controls, using kitty graphics when the terminal supports them (iTerm2
   for example) or a fallback cell renderer otherwise (cell-background on
-  Terminal.app, half-block elsewhere, keys still work). `--fallback`
-  selects the best available renderer directly, and `--render-mode` forces
-  a specific mode. `kitty` alone bypasses detection for the full player, a
-  cell mode forces the fallback player, and `--fallback --render-mode
-  kitty` forces the kitty-without-controls tier. When stdout is not a TTY
-  it prints a notice and exits without drawing
+  Terminal.app, half-block elsewhere, reduced quality, keys still work).
+  `--fallback` selects the best available renderer directly, and
+  `--render-mode` forces a specific mode. `kitty` alone bypasses detection
+  for the full player, a cell mode forces the fallback player, and
+  `--fallback --render-mode kitty` forces the kitty-without-controls tier.
+  When stdout is not a TTY it prints a notice and exits without drawing
 - ffmpeg is bundled (via ffmpeg-static and ffprobe-static), no system install needed
 
 ## Install and run

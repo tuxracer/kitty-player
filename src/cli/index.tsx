@@ -8,7 +8,7 @@
  * parseCliArgs from ./parseCliArgs.ts directly.
  */
 import { render } from 'ink';
-import { createScreen } from 'kitty-motion';
+import { createScreen, detectCellPixelSize } from 'kitty-motion';
 import type { RenderMode } from 'kitty-motion';
 
 import { createFfmpegSource, isFfmpegSourceError } from '../ffmpegSource/index.ts';
@@ -114,6 +114,13 @@ try {
 // rows to lay out. The playback loop resolves when the user quits, with
 // the screen disposed and source closed.
 if (fallbackMode !== undefined) {
+  // The kitty tier measures the real cell pixel size so the frame keeps its
+  // aspect on fonts other than the assumed 9x18. stdin is still free here,
+  // and this runs after the graphics probe, never concurrently with another
+  // detector. Cell tiers stay probe-free.
+  if (fallbackMode === 'kitty') {
+    await detectCellPixelSize();
+  }
   const fallbackScreen = createFallbackScreen(info, fallbackMode);
   await runFallbackPlayer({
     screen: fallbackScreen,
