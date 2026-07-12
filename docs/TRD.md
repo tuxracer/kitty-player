@@ -88,7 +88,11 @@ the video, so the picture participates in Ink layout like any other text.
 
 - A `setInterval` at the source frame rate lives outside React state. Refs
   mirror `playing` and elapsed time as the source of truth for the interval
-  callback.
+  callback. The playhead itself advances against a wall-clock anchor reset
+  at every gate release, not by counting ticks: a late timer fire
+  permanently loses its lateness (one to two percent under decode load),
+  and a tick-counted clock drags behind the wall-paced audio device until
+  the drift snap fires periodically forever.
 - An in-flight guard keeps async `getFrameAt` calls from piling up behind a
   slow source.
 - Frames go straight to `screen.pushFrame()`, bypassing React entirely, so
@@ -100,11 +104,15 @@ the video, so the picture participates in Ink layout like any other text.
   wraps, replays, resumes, and drift resyncs, and the interval retries the
   gated position each tick instead of advancing. Phase one waits for the
   source to deliver the frame at the playhead. Phase two starts audio there
-  and keeps holding until the audio has made sound or reported it cannot
-  (`AudioPlayer.isStarting`), so picture, bar, and sound begin together.
-  Remote URLs take seconds to produce their first frame and their first
-  sound, and without the gate the bar runs ahead while the skipped content
-  is never shown. A hold outlasting `LOADING_DELAY_MS` shows an @inkjs/ui
+  and keeps holding until the source's readahead is comfortably full
+  (`FrameSource.isBuffering`, about a second of decoded frames) and the
+  audio has made sound or reported it cannot (`AudioPlayer.isStarting`,
+  which stays true while the audio player holds back its
+  `AUDIO_PREBUFFER_MS` lead). Playback therefore begins with buffered
+  cushions on both streams, with picture, bar, and sound together. Remote
+  URLs take seconds to produce their first frame and their first sound,
+  and without the gate the bar runs ahead while the skipped content is
+  never shown. A hold outlasting `LOADING_DELAY_MS` shows an @inkjs/ui
   spinner with a buffering label in the controls row (`clock.buffering`
   drives it), so a slow start looks like loading instead of a hang. Once playback is underway a null frame still advances the
   clock, so frames drop and playback stays realtime. Seeks and wraps move

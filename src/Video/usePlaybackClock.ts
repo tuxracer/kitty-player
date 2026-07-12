@@ -89,6 +89,13 @@ export const usePlaybackClock = ({
     setBuffering(true);
   }, []);
 
+  // Wall-clock anchor for the running clock, reset at every gate release.
+  // Ticks compute the playhead from real elapsed time instead of counting
+  // intervals: a late timer fire permanently loses its lateness (one to
+  // two percent under decode load), which would drag the clock behind an
+  // accurately paced audio device and trip the drift snap forever.
+  const anchorRef = useRef({ wallMs: 0, elapsedMs: 0 });
+
   const noteSourceError = useCallback(
     (error: unknown): void => {
       callbacksRef.current.onError?.(error);
@@ -130,17 +137,22 @@ export const usePlaybackClock = ({
             }
             // The picture is ready. Start audio at the position the
             // picture resumed from (once per hold), then keep holding
-            // until it makes sound or reports it cannot, so playback
-            // begins with both together.
+            // until the source's readahead is comfortably full and the
+            // audio has made sound or reported it cannot, so playback
+            // begins buffered and with both streams together.
             if (!audioStartedRef.current && readPlaying()) {
               audioStartedRef.current = true;
               audioRef.current?.playFrom(nextMs);
+            }
+            if (source.isBuffering?.() ?? false) {
+              return;
             }
             if (readPlaying() && (audioRef.current?.isStarting() ?? false)) {
               return;
             }
             waitingRef.current = false;
             setBuffering(false);
+            anchorRef.current = { wallMs: Date.now(), elapsedMs: nextMs };
           }
           const previousSecond = Math.floor(elapsedRef.current / MS_PER_SECOND);
           const nextSecond = Math.floor(nextMs / MS_PER_SECOND);
@@ -151,10 +163,10 @@ export const usePlaybackClock = ({
               currentTime: nextMs / MS_PER_SECOND,
               duration: info.durationMs / MS_PER_SECOND,
             });
-            // Drift snap: the video clock silently stalls when a slow
-            // source trips the in-flight guard, so audio can drift away.
-            // Once per displayed second is enough correction. The resync
-            // goes through the gate (the next tick restarts audio at the
+            // Drift snap: audio can still drift from real gaps (a device
+            // underrun after a delivery stall, device clock skew). Once
+            // per displayed second is enough correction. The resync goes
+            // through the gate (the next tick restarts audio at the
             // playhead and holds until it is audible), so a slow-starting
             // decoder is never respawned into a chase it cannot win.
             const audioPositionMs = audioRef.current?.getPositionMs() ?? null;
@@ -286,14 +298,16 @@ export const usePlaybackClock = ({
       if (!playingRef.current || !screen.isWritable() || inFlightRef.current) {
         return;
       }
-      const nextMs = elapsedRef.current + intervalMs;
-      if (waitingRef.current && nextMs < info.durationMs) {
+      if (waitingRef.current && elapsedRef.current + intervalMs < info.durationMs) {
         // Buffering: retry the gated position instead of advancing. At the
         // end of the stream this falls through so a gated playhead parked
         // there still reaches the loop/ended handling below.
         showFrameAt(elapsedRef.current);
         return;
       }
+      const nextMs = waitingRef.current
+        ? elapsedRef.current + intervalMs
+        : anchorRef.current.elapsedMs + (Date.now() - anchorRef.current.wallMs);
       if (nextMs < info.durationMs) {
         showFrameAt(nextMs);
         return;

@@ -9,6 +9,8 @@ import ffmpegPath from 'ffmpeg-static';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  AUDIO_PREBUFFER_MS,
+  AUDIO_QUEUE_CAP_MS,
   AUDIO_UNAVAILABLE_MESSAGE,
   BYTES_PER_SAMPLE,
   CHANNELS,
@@ -244,6 +246,7 @@ let silentVideo: string;
 let notMedia: string;
 let shortAudio: string;
 let liveAudio: string;
+let longAudio: string;
 
 const FIXTURE_TIMEOUT_MS = 60_000;
 
@@ -280,6 +283,11 @@ beforeAll(async () => {
   await execFileAsync(ffmpegPath, [
     '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2',
     '-c:a', 'aac', '-f', 'matroska', '-live', '1', liveAudio,
+  ]);
+  // Longer than the queue cap, so the backpressure test can actually hit it
+  longAudio = join(fixtureDir, 'long-audio.m4a');
+  await execFileAsync(ffmpegPath, [
+    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=12', '-c:a', 'aac', longAudio,
   ]);
 }, FIXTURE_TIMEOUT_MS);
 
@@ -481,18 +489,48 @@ describe('createFfmpegAudioPlayer playback', () => {
 
   it('stops feeding at the queue cap until the device plays frames', async () => {
     const fake = createFakeDeviceFactory();
-    const player = createFfmpegAudioPlayer({ filePath: withAudio, createDevice: fake.createDevice });
+    const player = createFfmpegAudioPlayer({ filePath: longAudio, createDevice: fake.createDevice });
     await player.open();
     player.playFrom(0);
-    // 500 ms cap at 1024 samples per frame and 48 kHz is 24 frames. The 2 s
-    // fixture holds about 94, so an uncapped feed would blow far past this.
-    const capFrames = Math.ceil((500 / 1_000) * (SAMPLE_RATE / FAKE_FRAME_SIZE));
+    // The 12 s fixture holds far more than the cap, so an uncapped feed
+    // would blow well past it. One pipe read can overshoot the cap by a
+    // few frames, hence the slack.
+    const capFrames = Math.ceil(
+      (AUDIO_QUEUE_CAP_MS / 1_000) * (SAMPLE_RATE / FAKE_FRAME_SIZE),
+    );
     await waitFor(() => fake.written.length >= capFrames);
     await new Promise((resolve) => setTimeout(resolve, 300));
     const writtenAtCap = fake.written.length;
-    expect(writtenAtCap).toBeLessThan(capFrames * 2);
+    expect(writtenAtCap).toBeLessThan(capFrames + 50);
     fake.playFrames(capFrames);
     await waitFor(() => fake.written.length > writtenAtCap);
+    await player.close();
+  });
+
+  it('holds sound back until a comfortable prebuffer exists, then flushes it at once', async () => {
+    const fake = createFakeDeviceFactory();
+    const player = createFfmpegAudioPlayer({ filePath: withAudio, createDevice: fake.createDevice });
+    await player.open();
+    player.playFrom(0);
+    await waitFor(() => fake.written.length > 0);
+    // Nothing reaches the device until the whole prebuffer arrives in one
+    // flush, so the first observation is already the full lead
+    const frameMs = (FAKE_FRAME_SIZE / SAMPLE_RATE) * 1_000;
+    expect(fake.written.length).toBeGreaterThanOrEqual(Math.floor(AUDIO_PREBUFFER_MS / frameMs));
+    await player.close();
+  });
+
+  it('flushes a partial prebuffer when the track ends before the target', async () => {
+    const fake = createFakeDeviceFactory();
+    const player = createFfmpegAudioPlayer({ filePath: withAudio, createDevice: fake.createDevice });
+    await player.open();
+    // 1500 ms into the 2 s track leaves less audio than the prebuffer target
+    player.playFrom(1_500);
+    await waitFor(() => fake.written.length > 0);
+    const frameMs = (FAKE_FRAME_SIZE / SAMPLE_RATE) * 1_000;
+    expect(fake.written.length * frameMs).toBeLessThan(AUDIO_PREBUFFER_MS);
+    // The finished attempt releases the clock's gate instead of stalling it
+    await waitFor(() => !player.isStarting());
     await player.close();
   });
 
@@ -565,7 +603,10 @@ describe('createFfmpegAudioPlayer playback', () => {
 
   it('reports isStarting only between playFrom and the first played frame', async () => {
     const fake = createFakeDeviceFactory();
-    const player = createFfmpegAudioPlayer({ filePath: withAudio, createDevice: fake.createDevice });
+    // The long fixture keeps the decoder alive (paused at the queue cap)
+    // through the mid-flight assertion; a track shorter than the cap
+    // decodes fully and exits, which correctly ends the starting state
+    const player = createFfmpegAudioPlayer({ filePath: longAudio, createDevice: fake.createDevice });
     await player.open();
     expect(player.isStarting()).toBe(false);
     player.playFrom(0);

@@ -358,6 +358,40 @@ describe('runFallbackPlayer', () => {
     await done;
   });
 
+  it('keeps holding until the source finishes filling its readahead', async () => {
+    const screen = createFakeScreen();
+    const keys = createFakeInput();
+    let filling = true;
+    const frame = new Uint8Array(INFO.width * INFO.height * 3);
+    const requestedMs: number[] = [];
+    const source: FrameSource = {
+      open: () => Promise.resolve(INFO),
+      getFrameAt: (timeMs) => {
+        requestedMs.push(timeMs);
+        return Promise.resolve(frame);
+      },
+      isBuffering: () => filling,
+      seek: () => Promise.resolve(),
+      close: () => Promise.resolve(),
+    };
+    const done = runFallbackPlayer({
+      screen: screen.screen,
+      source,
+      info: INFO,
+      input: keys.input,
+    });
+    await vi.advanceTimersByTimeAsync(TICK_MS * 5);
+    // Frames paint but every tick retried time zero while the readahead fills
+    expect(screen.pushedFrames.length).toBeGreaterThan(0);
+    expect(requestedMs.every((ms) => ms === 0)).toBe(true);
+    filling = false;
+    await vi.advanceTimersByTimeAsync(TICK_MS * 2);
+    expect(requestedMs).toContain(TICK_MS);
+    keys.press('q');
+    await vi.advanceTimersByTimeAsync(0);
+    await done;
+  });
+
   it('keeps holding after the first frame until audio makes sound', async () => {
     const audio = createFakeAudio();
     audio.starting = true;

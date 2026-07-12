@@ -28,6 +28,14 @@ export interface FrameSource {
    * buffer is only valid until the next call (sources may reuse it).
    */
   getFrameAt(timeMs: number): Promise<Uint8Array | null>;
+  /**
+   * True while the source is still filling its readahead, telling a caller
+   * that can wait (the player's buffering gate) to keep waiting for a
+   * comfortable buffer. Must flip false once no more frames are coming
+   * (readahead full, stream end, decoder death), so a waiting caller is
+   * never stranded. Optional: sources without a readahead never report it.
+   */
+  isBuffering?(): boolean;
   /** Repositions the source so getFrameAt near timeMs is cheap. No-op for random-access sources. */
   seek(timeMs: number): Promise<void>;
   /** Releases decoder resources. Idempotent. */

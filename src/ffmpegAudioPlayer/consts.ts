@@ -13,8 +13,21 @@ export const BYTES_PER_SAMPLE = 2;
 /** Requested device frame size in samples per channel (about 21 ms at 48 kHz) */
 export const DEVICE_FRAME_SIZE = 1_024;
 
-/** Cap on decoded-but-unplayed audio queued in the device, in ms */
-export const AUDIO_QUEUE_CAP_MS = 500;
+/**
+ * Cap on decoded-but-unplayed audio, in ms. This backlog is the cushion
+ * that absorbs decoder and event-loop hiccups: anything shorter than it
+ * plays through without an underrun, so it is sized generously (five
+ * seconds of 48 kHz stereo s16 is about 1 MB).
+ */
+export const AUDIO_QUEUE_CAP_MS = 5_000;
+
+/**
+ * PCM held back from the device after each playFrom until this much is
+ * buffered (or the track ends first), so playback starts with a
+ * comfortable lead instead of running hand-to-mouth. The clock's buffering
+ * gate holds while this fills (isStarting stays true).
+ */
+export const AUDIO_PREBUFFER_MS = 1_000;
 
 /**
  * RtAudio's RTAUDIO_SINT16 format flag. audify declares its formats as an

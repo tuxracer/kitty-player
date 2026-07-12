@@ -51,6 +51,8 @@ export interface Decoder {
   nextTimestampMs: number;
   /** True when this decoder was killed on purpose (seek, respawn, close) */
   killed: boolean;
+  /** True once this decoder's process is gone for any reason (stream end, crash, spawn failure) */
+  exited: boolean;
   /** The ffmpeg child process, stdout piped for frames, stderr piped for errors */
   child: ChildProcessByStdio<null, Readable, Readable>;
 }

@@ -958,6 +958,34 @@ describe('Video buffering gate', () => {
     unmount();
   });
 
+  it('keeps holding until the source finishes filling its readahead', async () => {
+    const harness = createFakeScreen();
+    let filling = true;
+    const frame = new Uint8Array(INFO.width * INFO.height * 3);
+    const source: FrameSource = {
+      open: () => Promise.resolve(INFO),
+      getFrameAt: () => Promise.resolve(frame),
+      isBuffering: () => filling,
+      seek: () => Promise.resolve(),
+      close: () => Promise.resolve(),
+    };
+    const ref = createRef<VideoRef>();
+    const { unmount } = render(
+      <Video ref={ref} screen={harness.screen} source={source} info={INFO} autoPlay />,
+    );
+    await delay(150);
+    await flush();
+    // Frames paint but the clock holds while the readahead fills
+    expect(harness.pushedFrames.length).toBeGreaterThan(0);
+    expect(ref.current?.currentTime).toBe(0);
+
+    filling = false;
+    await delay(150);
+    await flush();
+    expect(ref.current?.currentTime).toBeGreaterThan(0);
+    unmount();
+  });
+
   it('keeps holding after the first frame until audio makes sound', async () => {
     const { harness, source, info } = await setup();
     const audio = createFakeAudio();

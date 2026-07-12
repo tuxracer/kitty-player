@@ -77,7 +77,13 @@ export const createFfmpegSource = (options: FfmpegSourceOptions): FrameSource =>
       { stdio: ['ignore', 'pipe', 'pipe'] },
     );
 
-    const current: Decoder = { frames: [], nextTimestampMs: startMs, killed: false, child };
+    const current: Decoder = {
+      frames: [],
+      nextTimestampMs: startMs,
+      killed: false,
+      exited: false,
+      child,
+    };
 
     // Chunks accumulate until at least one whole frame arrived, then a single
     // concat slices out every complete frame (one copy per data event, not
@@ -124,8 +130,12 @@ export const createFfmpegSource = (options: FfmpegSourceOptions): FrameSource =>
       );
     };
 
-    child.on('error', noteFailure);
+    child.on('error', () => {
+      current.exited = true;
+      noteFailure();
+    });
     child.on('close', (code, signal) => {
+      current.exited = true;
       if (code !== 0 || signal !== null) {
         noteFailure();
       }
@@ -197,6 +207,16 @@ export const createFfmpegSource = (options: FfmpegSourceOptions): FrameSource =>
     return Promise.resolve(frame === undefined ? null : frame.data);
   };
 
+  // Still filling the readahead: a live decoder below the queue cap. A full
+  // queue, a finished stream, or a dead decoder all read as done, so a
+  // caller waiting on this (the player's buffering gate) is never stranded.
+  const isBuffering = (): boolean =>
+    !closed &&
+    info !== null &&
+    decoder !== null &&
+    !decoder.exited &&
+    decoder.frames.length < queueCapacity(info.fps);
+
   const seek = (timeMs: number): Promise<void> => {
     if (closed || info === null) {
       return Promise.resolve();
@@ -212,5 +232,5 @@ export const createFfmpegSource = (options: FfmpegSourceOptions): FrameSource =>
     return Promise.resolve();
   };
 
-  return { open, getFrameAt, seek, close };
+  return { open, getFrameAt, isBuffering, seek, close };
 };

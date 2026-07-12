@@ -114,6 +114,12 @@ export const runFallbackPlayer = ({
     let waiting = true;
     let audioStarted = false;
     let timeline = 0;
+    // Wall-clock anchor, reset at every gate release: ticks compute the
+    // playhead from real elapsed time instead of counting intervals, whose
+    // lost lateness would drag the clock behind the audio (see
+    // usePlaybackClock).
+    let anchorWallMs = 0;
+    let anchorElapsedMs = 0;
     const intervalMs = Math.round(MS_PER_SECOND / info.fps);
     audio?.setMuted(audioMuted);
 
@@ -147,15 +153,21 @@ export const runFallbackPlayer = ({
             }
             // The picture is ready. Start audio at the position the
             // picture resumed from (once per hold), then keep holding
-            // until it makes sound or reports it cannot.
+            // until the source's readahead is comfortably full and the
+            // audio has made sound or reports it cannot.
             if (!audioStarted && playing) {
               audioStarted = true;
               audio?.playFrom(nextMs);
+            }
+            if (source.isBuffering?.() ?? false) {
+              return;
             }
             if (playing && (audio?.isStarting() ?? false)) {
               return;
             }
             waiting = false;
+            anchorWallMs = Date.now();
+            anchorElapsedMs = nextMs;
           }
           elapsedMs = nextMs;
         })
@@ -191,14 +203,16 @@ export const runFallbackPlayer = ({
       if (!playing || !screen.isWritable() || inFlight) {
         return;
       }
-      const nextMs = elapsedMs + intervalMs;
-      if (waiting && nextMs < info.durationMs) {
+      if (waiting && elapsedMs + intervalMs < info.durationMs) {
         // Buffering: retry the gated position instead of advancing. At the
         // end of the stream this falls through so a gated playhead parked
         // there still reaches the wrap below.
         showFrameAt(elapsedMs);
         return;
       }
+      const nextMs = waiting
+        ? elapsedMs + intervalMs
+        : anchorElapsedMs + (Date.now() - anchorWallMs);
       if (nextMs < info.durationMs) {
         // Drift snap once per whole second, on non-wrap ticks only, so a
         // wrap tick never fires a redundant snap right before its own

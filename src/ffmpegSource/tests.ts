@@ -184,6 +184,18 @@ describe('probeFile', () => {
   });
 });
 
+/** Polls until the condition holds or five seconds pass */
+const waitForCondition = async (condition: () => boolean): Promise<void> => {
+  const deadlineMs = Date.now() + 5_000;
+  while (Date.now() < deadlineMs) {
+    if (condition()) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  throw new Error('condition not met within 5s');
+};
+
 // The source reuses buffers, so successful grabs snapshot a copy. Decoding is
 // async and getFrameAt never blocks, so poll until the frame lands.
 const waitForFrame = async (source: FrameSource, timeMs: number): Promise<Uint8Array> => {
@@ -316,6 +328,28 @@ describe('createFfmpegSource', () => {
     expect(info.height).toBe(64);
     const frame = await waitForFrame(source, 0);
     expect(frame.length).toBe(36 * 64 * RGB_CHANNELS);
+    await source.close();
+  });
+
+  it('fills the readahead after open and stops reporting buffering', async () => {
+    const source = createFfmpegSource({ filePath: smallVideo });
+    await source.open();
+    await waitForCondition(() => !(source.isBuffering?.() ?? false));
+    // The filled readahead serves without further waiting
+    await expect(source.getFrameAt(0)).resolves.not.toBeNull();
+    await source.close();
+    expect(source.isBuffering?.()).toBe(false);
+  });
+
+  it('stops reporting buffering when the stream ends before the readahead fills', async () => {
+    const source = createFfmpegSource({ filePath: smallVideo });
+    await source.open();
+    // 1900 ms into the 2 s fixture leaves a single frame, far below the
+    // readahead cap, so only the decoder's exit ends the buffering
+    await source.seek(1_900);
+    await waitForCondition(() => !(source.isBuffering?.() ?? false));
+    const frame = await waitForFrame(source, 1_900);
+    expect(frame.length).toBe(64 * 36 * RGB_CHANNELS);
     await source.close();
   });
 });
