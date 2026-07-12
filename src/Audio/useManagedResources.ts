@@ -2,22 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 
 import { createFfmpegAudioPlayer } from '../ffmpegAudioPlayer/index.ts';
 import { probeMediaFile } from '../mediaProbe/index.ts';
-import { MS_PER_SECOND } from './consts.ts';
+import { INITIAL_MANAGED_AUDIO_RESOURCES, MS_PER_SECOND } from './consts.ts';
 import type { ManagedAudioResources, ManagedAudioResourcesOptions } from './types.ts';
 import { AudioError } from './types.ts';
-
-const IDLE: ManagedAudioResources = {
-  status: 'loading',
-  audio: null,
-  durationMs: null,
-};
 
 export const useManagedResources = ({
   src,
   onLoadedMetadata,
   onError,
 }: ManagedAudioResourcesOptions): ManagedAudioResources => {
-  const [resources, setResources] = useState<ManagedAudioResources>(IDLE);
+  const [resources, setResources] = useState<ManagedAudioResources>(
+    INITIAL_MANAGED_AUDIO_RESOURCES,
+  );
   const callbacksRef = useRef({ onLoadedMetadata, onError });
   callbacksRef.current = { onLoadedMetadata, onError };
 
@@ -29,7 +25,7 @@ export const useManagedResources = ({
     };
     const audio = createFfmpegAudioPlayer({ filePath: src, probeAudio: hasAudio });
     let cancelled = false;
-    setResources(IDLE);
+    setResources(INITIAL_MANAGED_AUDIO_RESOURCES);
 
     void Promise.all([openingProbe, audio.open()])
       .then(([probe, info]) => {
@@ -58,7 +54,7 @@ export const useManagedResources = ({
 
     return () => {
       cancelled = true;
-      setResources(IDLE);
+      setResources(INITIAL_MANAGED_AUDIO_RESOURCES);
       void audio.close().catch(() => undefined);
     };
   }, [src]);

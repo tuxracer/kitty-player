@@ -1,3 +1,5 @@
+import type { ManagedAudioResources } from './types.ts';
+
 export const AUDIO_TICK_MS = 50;
 export const DRIFT_RESYNC_THRESHOLD_MS = 250;
 export const LOADING_DELAY_MS = 1_000;
@@ -10,3 +12,9 @@ export const PLAY_GLYPH = '▶';
 export const PAUSE_GLYPH = '⏸';
 export const LOADING_TEXT = 'loading audio…';
 export const BUFFERING_TEXT = 'buffering…';
+
+export const INITIAL_MANAGED_AUDIO_RESOURCES: ManagedAudioResources = {
+  status: 'loading',
+  audio: null,
+  durationMs: null,
+};

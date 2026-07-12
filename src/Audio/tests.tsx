@@ -294,7 +294,7 @@ describe('useManagedResources', () => {
     await settle();
     expect(harness.closeCalls).toBe(1);
     probe.resolve({ kind: 'audio', durationMs: 20_000, coverArt: null });
-    open.resolve({ hasAudio: true });
+    open.reject(new Error('open failed after unmount'));
     await settle();
 
     expect(onLoadedMetadata).not.toHaveBeenCalled();
