@@ -335,9 +335,15 @@ describe('openMediaSource', () => {
     kind: 'audio',
     durationMs: 2_000,
     coverArt: { nativeWidth: 64, nativeHeight: 36 },
+    title: null,
   };
 
-  const bareAudioProbe: AudioProbeResult = { kind: 'audio', durationMs: 2_000, coverArt: null };
+  const bareAudioProbe: AudioProbeResult = {
+    kind: 'audio',
+    durationMs: 2_000,
+    coverArt: null,
+    title: null,
+  };
 
   it('opens the video source for a video probe, passing the probe through', async () => {
     const video = fakeSource(fakeInfo(1));

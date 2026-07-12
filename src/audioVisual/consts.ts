@@ -1,0 +1,1 @@
+export const DEFAULT_AUDIO_PLACEHOLDER_LABEL = 'Audio';

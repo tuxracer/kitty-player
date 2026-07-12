@@ -71,6 +71,14 @@ const readRotation = (stream: Record<string, unknown>): number => {
 const isAttachedPic = (stream: Record<string, unknown>): boolean =>
   isRecord(stream.disposition) && asFiniteNumber(stream.disposition.attached_pic) === 1;
 
+const readTitle = (value: unknown): string | null => {
+  if (!isRecord(value) || typeof value.title !== 'string') {
+    return null;
+  }
+  const title = value.title.trim();
+  return title === '' ? null : title;
+};
+
 /**
  * Demuxes one stream to null at stream-copy speed and reports the last
  * progress timestamp. Recovers the duration of live-muxed files whose
@@ -234,5 +242,6 @@ export const probeMediaFile = async (filePath: string): Promise<MediaProbeResult
       coverArt = { nativeWidth: artWidth, nativeHeight: artHeight };
     }
   }
-  return { kind: 'audio', durationMs, coverArt };
+  const title = readTitle(audio.tags) ?? readTitle(isRecord(parsed.format) ? parsed.format.tags : null);
+  return { kind: 'audio', durationMs, coverArt, title };
 };

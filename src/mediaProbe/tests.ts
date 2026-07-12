@@ -28,6 +28,9 @@ let rotatedVideo: string;
 let noDurationVideo: string;
 let toneMp3: string;
 let toneOgg: string;
+let streamTitleAudio: string;
+let formatTitleAudio: string;
+let emptyTitleAudio: string;
 let artMp3: string;
 let noDurationAudio: string;
 let subsOnly: string;
@@ -46,6 +49,9 @@ beforeAll(async () => {
   noDurationVideo = join(fixtureDir, 'no-duration.mkv');
   toneMp3 = join(fixtureDir, 'tone.mp3');
   toneOgg = join(fixtureDir, 'tone.ogg');
+  streamTitleAudio = join(fixtureDir, 'stream-title.mka');
+  formatTitleAudio = join(fixtureDir, 'format-title.mka');
+  emptyTitleAudio = join(fixtureDir, 'empty-title.mka');
   artMp3 = join(fixtureDir, 'art.mp3');
   noDurationAudio = join(fixtureDir, 'no-duration-audio.mka');
   subsOnly = join(fixtureDir, 'subs-only.mkv');
@@ -77,6 +83,19 @@ beforeAll(async () => {
   ]);
   await execFileAsync(ffmpegPath, [
     '-f', 'lavfi', '-i', 'sine=frequency=440:duration=2', toneOgg,
+  ]);
+  await execFileAsync(ffmpegPath, [
+    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
+    '-metadata', 'title=Format title', '-metadata:s:a:0', 'title=Stream title',
+    '-c:a', 'pcm_s16le', streamTitleAudio,
+  ]);
+  await execFileAsync(ffmpegPath, [
+    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
+    '-metadata', 'title=Format title', '-c:a', 'pcm_s16le', formatTitleAudio,
+  ]);
+  await execFileAsync(ffmpegPath, [
+    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
+    '-metadata', 'title=   ', '-c:a', 'pcm_s16le', emptyTitleAudio,
   ]);
   const coverPng = join(fixtureDir, 'cover.png');
   await execFileAsync(ffmpegPath, [
@@ -184,6 +203,25 @@ describe('probeMediaFile on audio files', () => {
   it('classifies an ogg as audio', async () => {
     const probe = asAudio(await probeMediaFile(toneOgg));
     expect(probe.durationMs).toBeGreaterThanOrEqual(1_900);
+  });
+
+  it('prefers the audio stream title over the format title', async () => {
+    expect(await probeMediaFile(streamTitleAudio)).toMatchObject({
+      kind: 'audio',
+      title: 'Stream title',
+    });
+  });
+
+  it('uses the format title when the audio stream has none', async () => {
+    expect(await probeMediaFile(formatTitleAudio)).toMatchObject({
+      kind: 'audio',
+      title: 'Format title',
+    });
+  });
+
+  it('reports null when title metadata is empty or absent', async () => {
+    expect(await probeMediaFile(emptyTitleAudio)).toMatchObject({ kind: 'audio', title: null });
+    expect(await probeMediaFile(toneMp3)).toMatchObject({ kind: 'audio', title: null });
   });
 
   it('classifies an mp3 with embedded cover art as audio, not video', async () => {

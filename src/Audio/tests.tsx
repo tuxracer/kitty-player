@@ -131,6 +131,7 @@ const mockSuccessfulLoad = (harness: FakeAudioHarness, durationMs: number): void
     kind: 'audio',
     durationMs,
     coverArt: null,
+    title: null,
   });
   ffmpegAudioMocks.createFfmpegAudioPlayer.mockReturnValue(harness.audio);
 };
@@ -152,6 +153,7 @@ describe('useManagedResources', () => {
       kind: 'audio',
       durationMs: 20_000,
       coverArt: null,
+      title: null,
     });
     ffmpegAudioMocks.createFfmpegAudioPlayer.mockReturnValue(harness.audio);
 
@@ -191,6 +193,7 @@ describe('useManagedResources', () => {
       kind: 'audio',
       durationMs: 20_000,
       coverArt: null,
+      title: null,
     });
     ffmpegAudioMocks.createFfmpegAudioPlayer.mockImplementation(
       (options: FfmpegAudioPlayerOptions) => ({
@@ -238,6 +241,7 @@ describe('useManagedResources', () => {
       kind: 'audio',
       durationMs: 20_000,
       coverArt: null,
+      title: null,
     });
     ffmpegAudioMocks.createFfmpegAudioPlayer.mockReturnValue(harness.audio);
 
@@ -273,9 +277,10 @@ describe('useManagedResources', () => {
       kind: 'audio';
       durationMs: number;
       coverArt: null;
+      title: null;
     }>();
     mediaProbeMocks.probeMediaFile
-      .mockResolvedValueOnce({ kind: 'audio', durationMs: 20_000, coverArt: null })
+      .mockResolvedValueOnce({ kind: 'audio', durationMs: 20_000, coverArt: null, title: null })
       .mockReturnValueOnce(secondProbe.promise);
     ffmpegAudioMocks.createFfmpegAudioPlayer
       .mockReturnValueOnce(first.audio)
@@ -289,7 +294,7 @@ describe('useManagedResources', () => {
     expect(view.lastFrame()).toContain('loading:null');
     expect(first.closeCalls).toBe(1);
 
-    secondProbe.resolve({ kind: 'audio', durationMs: 10_000, coverArt: null });
+    secondProbe.resolve({ kind: 'audio', durationMs: 10_000, coverArt: null, title: null });
     await settle();
     expect(view.lastFrame()).toContain('ready:10000');
     view.unmount();
@@ -301,6 +306,7 @@ describe('useManagedResources', () => {
       kind: 'audio';
       durationMs: number;
       coverArt: null;
+      title: null;
     }>();
     const open = createDeferred<{ hasAudio: boolean }>();
     harness.audio.open = () => open.promise;
@@ -320,7 +326,7 @@ describe('useManagedResources', () => {
     view.unmount();
     await settle();
     expect(harness.closeCalls).toBe(1);
-    probe.resolve({ kind: 'audio', durationMs: 20_000, coverArt: null });
+    probe.resolve({ kind: 'audio', durationMs: 20_000, coverArt: null, title: null });
     open.reject(new Error('open failed after unmount'));
     await settle();
 
@@ -462,8 +468,8 @@ describe('Audio', () => {
     const first = createFakeAudio();
     const second = createFakeAudio();
     mediaProbeMocks.probeMediaFile
-      .mockResolvedValueOnce({ kind: 'audio', durationMs: 20_000, coverArt: null })
-      .mockResolvedValueOnce({ kind: 'audio', durationMs: 10_000, coverArt: null });
+      .mockResolvedValueOnce({ kind: 'audio', durationMs: 20_000, coverArt: null, title: null })
+      .mockResolvedValueOnce({ kind: 'audio', durationMs: 10_000, coverArt: null, title: null });
     ffmpegAudioMocks.createFfmpegAudioPlayer
       .mockReturnValueOnce(first.audio)
       .mockReturnValueOnce(second.audio);
@@ -506,8 +512,8 @@ describe('Audio', () => {
     const first = createFakeAudio();
     const second = createFakeAudio();
     mediaProbeMocks.probeMediaFile
-      .mockResolvedValueOnce({ kind: 'audio', durationMs: 20_000, coverArt: null })
-      .mockResolvedValueOnce({ kind: 'audio', durationMs: 10_000, coverArt: null });
+      .mockResolvedValueOnce({ kind: 'audio', durationMs: 20_000, coverArt: null, title: null })
+      .mockResolvedValueOnce({ kind: 'audio', durationMs: 10_000, coverArt: null, title: null });
     ffmpegAudioMocks.createFfmpegAudioPlayer
       .mockReturnValueOnce(first.audio)
       .mockReturnValueOnce(second.audio);
@@ -548,6 +554,7 @@ describe('Audio', () => {
       kind: 'audio';
       durationMs: number;
       coverArt: null;
+      title: null;
     }>();
     const harness = createFakeAudio();
     mediaProbeMocks.probeMediaFile.mockReturnValue(pending.promise);
@@ -713,9 +720,10 @@ describe('Audio', () => {
       kind: 'audio';
       durationMs: number;
       coverArt: null;
+      title: null;
     }>();
     mediaProbeMocks.probeMediaFile
-      .mockResolvedValueOnce({ kind: 'audio', durationMs: 20_000, coverArt: null })
+      .mockResolvedValueOnce({ kind: 'audio', durationMs: 20_000, coverArt: null, title: null })
       .mockReturnValueOnce(secondProbe.promise);
     ffmpegAudioMocks.createFfmpegAudioPlayer
       .mockReturnValueOnce(first.audio)
@@ -731,7 +739,7 @@ describe('Audio', () => {
     await flush();
     expect(ref.current?.duration).toBe(Number.NaN);
     expect(ref.current?.currentTime).toBe(0);
-    secondProbe.resolve({ kind: 'audio', durationMs: 10_000, coverArt: null });
+    secondProbe.resolve({ kind: 'audio', durationMs: 10_000, coverArt: null, title: null });
     await flush();
     expect(ref.current?.duration).toBe(10);
     view.unmount();

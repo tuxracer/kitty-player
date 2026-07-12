@@ -31,6 +31,8 @@ export interface AudioProbeResult {
   durationMs: number;
   /** The embedded cover art picture, or null when the file has none */
   coverArt: CoverArtInfo | null;
+  /** Trimmed title metadata, or null when no valid title exists */
+  title: string | null;
 }
 
 /** What kind of media a file holds, from one ffprobe run */
