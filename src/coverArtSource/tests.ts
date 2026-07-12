@@ -25,7 +25,7 @@ beforeAll(async () => {
   if (ffmpegPath === null) {
     throw new Error('ffmpeg-static provides no binary for this platform');
   }
-  fixtureDir = await mkdtemp(join(tmpdir(), 'kitty-video-player-cover-art-'));
+  fixtureDir = await mkdtemp(join(tmpdir(), 'kitty-media-player-cover-art-'));
   plainMp3 = join(fixtureDir, 'plain.mp3');
   artMp3 = join(fixtureDir, 'art.mp3');
   const coverPng = join(fixtureDir, 'cover.png');

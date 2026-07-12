@@ -6,7 +6,7 @@ import type { RenderMode } from 'kitty-motion';
  * package.json from outside src/ breaks the tsconfig include. Keep in sync
  * with the "version" field in package.json.
  */
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 
 /** Values accepted by --render-mode, kitty-motion's full RenderMode union */
 export const RENDER_MODES: readonly RenderMode[] = [
@@ -24,12 +24,12 @@ export const EXIT_OK = 0;
 export const EXIT_USAGE = 1;
 
 /** Usage and controls text printed by --help (and to stderr after a usage error) */
-export const HELP_TEXT = `kitty-video-player, a terminal video player (Ink UI with a kitty-motion video panel)
+export const HELP_TEXT = `kitty-media-player, a terminal media player (Ink UI with a kitty-motion video panel)
 
 Usage:
-  kitty-video-player            play the built-in procedural demo
-  kitty-video-player <file>     play a video or audio file (decoded with the bundled ffmpeg)
-  kitty-video-player <url>      play media from an http(s) URL
+  kitty-media-player            play the built-in procedural demo
+  kitty-media-player <file>     play a video or audio file (decoded with the bundled ffmpeg)
+  kitty-media-player <url>      play media from an http(s) URL
 
 Options:
   -h, --help              print this help and exit
@@ -60,17 +60,17 @@ do not.
 
 The full player requires an interactive Kitty or Ghostty terminal (Kitty
 graphics protocol with Unicode placeholder support) outside tmux/screen.
-On other terminals kitty-video-player offers to play without on-screen controls,
+On other terminals kitty-media-player offers to play without on-screen controls,
 using kitty graphics when the terminal supports them (iTerm2 for example)
 or a fallback cell renderer (cell-background on Terminal.app, half-block
 elsewhere).`;
 
 /** Printed to stderr when stdout is not an interactive terminal */
 export const UNSUPPORTED_TERMINAL_MESSAGE =
-  'kitty-video-player needs an interactive terminal (stdout is not a TTY). Nothing was drawn.';
+  'kitty-media-player needs an interactive terminal (stdout is not a TTY). Nothing was drawn.';
 
 /** First line of the warning printed before the fallback prompt */
-export const FALLBACK_WARNING_HEADER = 'kitty-video-player: the full player cannot run here:';
+export const FALLBACK_WARNING_HEADER = 'kitty-media-player: the full player cannot run here:';
 
 /** One warning line per fallback reason, printed under FALLBACK_WARNING_HEADER */
 export const FALLBACK_REASON_MESSAGES: Record<FallbackReason, string> = {

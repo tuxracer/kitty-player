@@ -53,4 +53,4 @@ export const STDERR_TAIL_MAX_CHARS = 2_048;
 
 /** One-time stderr notice when no audio device or audify binding is available */
 export const AUDIO_UNAVAILABLE_MESSAGE =
-  'kitty-video-player: audio output is unavailable, playing without sound';
+  'kitty-media-player: audio output is unavailable, playing without sound';

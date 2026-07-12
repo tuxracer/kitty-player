@@ -31,7 +31,7 @@ export const startLoadingIndicator = (
       drawFrame();
       interval = setInterval(drawFrame, SPINNER_INTERVAL_MS);
     } else {
-      output.write(`kitty-video-player: loading ${target}…\n`);
+      output.write(`kitty-media-player: loading ${target}…\n`);
     }
   }, LOADING_DELAY_MS);
 

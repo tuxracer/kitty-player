@@ -45,7 +45,7 @@ export const createRtAudioDevice: CreateAudioDevice = async ({
       RTAUDIO_FORMAT_SINT16,
       sampleRate,
       frameSize,
-      'kitty-video-player',
+      'kitty-media-player',
       null,
       // NEVER pass onFrameDone here: audify's frameOutputCallback registers
       // a native thread-safe function that is released neither by

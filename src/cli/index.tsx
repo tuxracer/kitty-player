@@ -59,7 +59,7 @@ if (args.action === 'version') {
 }
 
 if (args.action === 'usage-error') {
-  process.stderr.write(`kitty-video-player: ${args.message}\n\n${HELP_TEXT}\n`);
+  process.stderr.write(`kitty-media-player: ${args.message}\n\n${HELP_TEXT}\n`);
   process.exit(EXIT_USAGE);
 }
 
@@ -164,7 +164,7 @@ try {
   await audioPlayer?.close().catch(() => undefined);
   const message =
     isMediaProbeError(error) || isFfmpegSourceError(error) ? error.message : String(error);
-  process.stderr.write(`kitty-video-player: ${message}\n`);
+  process.stderr.write(`kitty-media-player: ${message}\n`);
   process.exit(EXIT_USAGE);
 }
 loadingIndicator?.stop();
@@ -221,7 +221,7 @@ try {
   await source.close().catch(() => undefined);
   await audio?.close().catch(() => undefined);
   const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`kitty-video-player: ${message}\n`);
+  process.stderr.write(`kitty-media-player: ${message}\n`);
   process.exit(EXIT_USAGE);
 }
 

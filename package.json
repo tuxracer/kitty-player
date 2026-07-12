@@ -1,21 +1,23 @@
 {
-  "name": "kitty-video-player",
+  "name": "kitty-media-player",
   "version": "0.3.0",
-  "description": "Terminal video player. Ink UI with a kitty-motion video panel over Kitty graphics Unicode placeholders.",
+  "description": "Terminal media player for video and audio files. Ink UI with a kitty-motion video panel over Kitty graphics Unicode placeholders.",
   "type": "module",
   "license": "MIT",
   "author": "Derek Petersen",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tuxracer/kitty-video-player.git"
+    "url": "git+https://github.com/tuxracer/kitty-media-player.git"
   },
-  "homepage": "https://github.com/tuxracer/kitty-video-player#readme",
+  "homepage": "https://github.com/tuxracer/kitty-media-player#readme",
   "bugs": {
-    "url": "https://github.com/tuxracer/kitty-video-player/issues"
+    "url": "https://github.com/tuxracer/kitty-media-player/issues"
   },
   "keywords": [
     "terminal",
     "video",
+    "audio",
+    "media",
     "player",
     "kitty",
     "kitty-graphics",
@@ -30,7 +32,7 @@
   },
   "packageManager": "pnpm@11.10.0",
   "bin": {
-    "kitty-video-player": "./dist/cli.js"
+    "kitty-media-player": "./dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

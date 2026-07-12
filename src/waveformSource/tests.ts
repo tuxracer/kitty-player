@@ -30,7 +30,7 @@ beforeAll(async () => {
   if (ffmpegPath === null) {
     throw new Error('ffmpeg-static provides no binary for this platform');
   }
-  fixtureDir = await mkdtemp(join(tmpdir(), 'kitty-video-player-waveform-'));
+  fixtureDir = await mkdtemp(join(tmpdir(), 'kitty-media-player-waveform-'));
   toneMp3 = join(fixtureDir, 'tone.mp3');
   silenceMp3 = join(fixtureDir, 'silence.mp3');
   await execFileAsync(ffmpegPath, [

@@ -214,7 +214,7 @@ export const createFfmpegAudioPlayer = (options: FfmpegAudioPlayerOptions): Audi
       decodeFailureNoted = true;
       const detail = stderrTail.trim();
       process.stderr.write(
-        `kitty-video-player: audio decode failed${detail === '' ? '' : `: ${detail}`}\n`,
+        `kitty-media-player: audio decode failed${detail === '' ? '' : `: ${detail}`}\n`,
       );
     };
 

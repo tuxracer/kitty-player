@@ -128,7 +128,7 @@ export const createFfmpegSource = (options: FfmpegSourceOptions): FrameSource =>
       decodeFailureNoted = true;
       const detail = stderrTail.trim();
       process.stderr.write(
-        `kitty-video-player: video decode failed${detail === '' ? '' : `: ${detail}`}\n`,
+        `kitty-media-player: video decode failed${detail === '' ? '' : `: ${detail}`}\n`,
       );
     };
 

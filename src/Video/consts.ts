@@ -14,7 +14,7 @@ export const PERCENT_MAX = 100;
 export const PROGRESS_BAR_WIDTH = 32;
 
 /** Title line above the video panel */
-export const PLAYER_TITLE = ' kitty-video-player';
+export const PLAYER_TITLE = ' kitty-media-player';
 
 /** Glyph shown in the controls row while playing */
 export const PLAY_GLYPH = '▶';

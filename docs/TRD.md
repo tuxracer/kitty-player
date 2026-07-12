@@ -1,11 +1,11 @@
-# kitty-video-player technical reference
+# kitty-media-player technical reference
 
-How kitty-video-player works internally. For installation, controls, and CLI flags,
+How kitty-media-player works internally. For installation, controls, and CLI flags,
 see the [README](../README.md).
 
 ## Overview
 
-kitty-video-player has two rendering paths. The full player is an
+kitty-media-player has two rendering paths. The full player is an
 [Ink](https://github.com/vadimdemedes/ink) app whose video pixels are drawn by
 [kitty-motion](https://github.com/tuxracer/kitty-motion) through Kitty graphics
 Unicode placeholders. The placeholder cells are ordinary text that Ink lays
@@ -95,7 +95,7 @@ obligation to create the Screen before `render()`:
 ```tsx
 import { render } from 'ink';
 import { createScreen } from 'kitty-motion';
-import { computePanelRegion, createProceduralSource, Video } from 'kitty-video-player';
+import { computePanelRegion, createProceduralSource, Video } from 'kitty-media-player';
 
 const source = createProceduralSource();
 const info = await source.open();

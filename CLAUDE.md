@@ -1,4 +1,4 @@
-# kitty-video-player
+# kitty-media-player
 
 ## Commands
 
@@ -306,12 +306,12 @@ Applies to all prose: README, doc comments, JSDoc, commit messages, and PR descr
 
   ```
   # BAD
-  kitty-video-player provides a robust, seamless playback experience that empowers
+  kitty-media-player provides a robust, seamless playback experience that empowers
   you to effortlessly watch video in the terminal. Whether you're demoing or
   debugging, it's not just smooth, it's blazingly fast.
 
   # GOOD
-  kitty-video-player plays video in the terminal through an Ink UI. Frames bypass
+  kitty-media-player plays video in the terminal through an Ink UI. Frames bypass
   React entirely, so Ink redraws about once per second while pixels update
   at 30fps.
   ```

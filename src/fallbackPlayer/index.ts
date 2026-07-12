@@ -126,7 +126,7 @@ export const runFallbackPlayer = ({
     const noteSourceError = (): void => {
       if (!sourceErrorNoted) {
         sourceErrorNoted = true;
-        process.stderr.write('kitty-video-player: frame source error, playback continues\n');
+        process.stderr.write('kitty-media-player: frame source error, playback continues\n');
       }
     };
 

@@ -287,7 +287,7 @@ describe('startLoadingIndicator', () => {
     const output = createOutput(false);
     const indicator = startLoadingIndicator('movie.mp4', output);
     vi.advanceTimersByTime(LOADING_DELAY_MS + SPINNER_INTERVAL_MS * 5);
-    expect(output.writes).toEqual(['kitty-video-player: loading movie.mp4…\n']);
+    expect(output.writes).toEqual(['kitty-media-player: loading movie.mp4…\n']);
     indicator.stop();
     // Nothing to erase on a non-TTY, the notice line stays
     expect(output.writes.length).toBe(1);

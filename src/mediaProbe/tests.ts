@@ -39,7 +39,7 @@ beforeAll(async () => {
   if (ffmpegPath === null) {
     throw new Error('ffmpeg-static provides no binary for this platform');
   }
-  fixtureDir = await mkdtemp(join(tmpdir(), 'kitty-video-player-media-probe-'));
+  fixtureDir = await mkdtemp(join(tmpdir(), 'kitty-media-player-media-probe-'));
   smallVideo = join(fixtureDir, 'small.mp4');
   soundVideo = join(fixtureDir, 'sound.mp4');
   rotatedVideo = join(fixtureDir, 'rotated.mp4');
