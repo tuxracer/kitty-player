@@ -5,7 +5,7 @@ A terminal video player. The UI (title, progress bar, controls) is an [Ink](http
 ## Requirements
 
 - Node.js >= 24
-- An interactive Kitty or Ghostty terminal outside tmux or GNU screen. Other
+- An interactive Kitty or [Ghostty](https://ghostty.org/) terminal outside tmux or GNU screen. Other
   interactive terminals get an offer to play in a reduced fallback mode
   without on-screen controls (see the `--fallback` and `--render-mode` flags).
   When stdout is not a TTY it prints a notice and exits without drawing
