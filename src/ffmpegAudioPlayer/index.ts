@@ -172,6 +172,11 @@ export const createFfmpegAudioPlayer = (options: FfmpegAudioPlayerOptions): Audi
   };
 
   const open = async (): Promise<AudioPlayerInfo> => {
+    if (device !== null) {
+      // open() is call-once: a repeat call reports the existing state
+      // instead of opening (and leaking) a second device
+      return { hasAudio: true };
+    }
     const hasStream = await probeHasAudio(filePath);
     if (!hasStream || ffmpegPath === null || closed) {
       return { hasAudio: false };

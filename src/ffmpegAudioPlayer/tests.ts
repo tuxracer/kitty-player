@@ -25,6 +25,7 @@ import type { AudioDevice, AudioDeviceOptions, CreateAudioDevice } from './types
 const audifyMock = vi.hoisted(() => {
   const state = {
     constructorThrows: false,
+    hideOutputVolume: false,
     openStreamArgs: [] as unknown[][],
     written: [] as Buffer[],
     clearQueueCalls: 0,
@@ -38,6 +39,11 @@ const audifyMock = vi.hoisted(() => {
     constructor() {
       if (state.constructorThrows) {
         throw new Error('no audio backend');
+      }
+      if (state.hideOutputVolume) {
+        // Shadow the prototype accessor so the instance looks like a build
+        // without the volume property
+        Object.defineProperty(this, 'outputVolume', { value: undefined, configurable: true });
       }
     }
     get outputVolume(): number {
@@ -84,6 +90,7 @@ const deviceOptions = (): AudioDeviceOptions => ({
 describe('createRtAudioDevice', () => {
   beforeEach(() => {
     audifyMock.state.constructorThrows = false;
+    audifyMock.state.hideOutputVolume = false;
     audifyMock.state.openStreamArgs = [];
     audifyMock.state.written = [];
     audifyMock.state.clearQueueCalls = 0;
@@ -128,6 +135,13 @@ describe('createRtAudioDevice', () => {
 
   it('resolves null when the RtAudio constructor throws', async () => {
     audifyMock.state.constructorThrows = true;
+    await expect(createRtAudioDevice(deviceOptions())).resolves.toBeNull();
+  });
+
+  it('resolves null when the instance lacks a numeric outputVolume', async () => {
+    // A build without the volume property would make setVolume (so mute) a
+    // silent no-op, better to degrade to no audio at all
+    audifyMock.state.hideOutputVolume = true;
     await expect(createRtAudioDevice(deviceOptions())).resolves.toBeNull();
   });
 });
@@ -284,6 +298,16 @@ describe('createFfmpegAudioPlayer open and close', () => {
     } finally {
       stderrSpy.mockRestore();
     }
+  });
+
+  it('a second open reuses the device instead of opening another', async () => {
+    const fake = createFakeDeviceFactory();
+    const player = createFfmpegAudioPlayer({ filePath: withAudio, createDevice: fake.createDevice });
+    await expect(player.open()).resolves.toEqual({ hasAudio: true });
+    await expect(player.open()).resolves.toEqual({ hasAudio: true });
+    expect(fake.createCalls).toBe(1);
+    await player.close();
+    expect(fake.closeCalls).toBe(1);
   });
 
   it('close is idempotent and closes the device', async () => {

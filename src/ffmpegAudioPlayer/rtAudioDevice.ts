@@ -5,6 +5,7 @@ import type { CreateAudioDevice, RtAudioStream } from './types.ts';
 /** True when value quacks like the RtAudio instance the adapter drives */
 const isRtAudioStream = (value: unknown): value is RtAudioStream =>
   isRecord(value) &&
+  typeof value.outputVolume === 'number' &&
   typeof value.openStream === 'function' &&
   typeof value.getDefaultOutputDevice === 'function' &&
   typeof value.start === 'function' &&
