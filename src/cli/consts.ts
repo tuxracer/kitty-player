@@ -1,5 +1,6 @@
 import type { FallbackReason } from './types.ts';
 import type { RenderMode } from 'kitty-motion';
+import type { AudioVisualMode } from '../audioVisual/index.ts';
 
 /**
  * Package version printed by --version. Kept as a literal because importing
@@ -15,6 +16,14 @@ export const RENDER_MODES: readonly RenderMode[] = [
   'cell-background',
   'emoji',
   'ascii',
+];
+
+/** Values accepted by --visual for audio-only files */
+export const AUDIO_VISUAL_MODES: readonly AudioVisualMode[] = [
+  'auto',
+  'artwork',
+  'waveform',
+  'none',
 ];
 
 /** Exit code for success paths (help, version, graceful unsupported-terminal exit) */
@@ -40,6 +49,8 @@ Options:
                           renderer)
       --muted             start playback with audio muted (the m key
                           toggles it back)
+      --visual <mode>     choose the visual for audio-only files: auto,
+                          artwork, waveform, or none (default: auto)
       --render-mode <mode>
                           force a render mode: kitty, half-block,
                           cell-background, emoji, or ascii. kitty alone

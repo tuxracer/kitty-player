@@ -7,19 +7,23 @@
  * never renders. Importing this module runs the CLI, so tests import
  * parseCliArgs from ./parseCliArgs.ts directly.
  */
-import { render } from 'ink';
+import { Box, render, Text } from 'ink';
 import { createScreen, detectCellPixelSize } from 'kitty-motion';
-import type { RenderMode } from 'kitty-motion';
 
 import type { AudioPlayer } from '../audioPlayer/index.ts';
+import {
+  AudioPlayerView,
+  CONTROLS_ROWS,
+  DEFAULT_VISUAL_HEIGHT,
+  DEFAULT_VISUAL_WIDTH,
+} from '../Audio/index.tsx';
+import { runFallbackAudioPlayer } from '../fallbackAudioPlayer/index.ts';
 import { createFallbackScreen, resolveFallbackRenderMode, runFallbackPlayer } from '../fallbackPlayer/index.ts';
 import { createFfmpegAudioPlayer } from '../ffmpegAudioPlayer/index.ts';
 import { isFfmpegSourceError } from '../ffmpegSource/index.ts';
-import type { FrameSource, FrameSourceInfo } from '../frameSource/index.ts';
 import { isMediaProbeError, probeMediaFile } from '../mediaProbe/index.ts';
-import { Video } from '../Video/index.tsx';
+import { HELP_TEXT as PLAYER_HELP_TEXT, PLAYER_TITLE, Video } from '../Video/index.tsx';
 import { computePanelRegion } from '../playerLayout/index.ts';
-import { createProceduralSource } from '../proceduralSource/index.ts';
 import { confirmFallback } from './confirmFallback.ts';
 import {
   EXIT_OK,
@@ -35,14 +39,24 @@ import {
 } from './consts.ts';
 import { detectFallbackReasons } from './detectFallbackReasons.ts';
 import { startLoadingIndicator } from './loadingIndicator.ts';
-import { openMediaSource } from './openMediaSource.ts';
 import { parseCliArgs } from './parseCliArgs.ts';
+import {
+  closeMediaPlayback,
+  resolveMediaPlayback,
+  resolvePlaybackRoute,
+} from './resolveMediaPlayback.ts';
 
 export { parseCliArgs } from './parseCliArgs.ts';
 export { detectFallbackReasons } from './detectFallbackReasons.ts';
 export { confirmFallback } from './confirmFallback.ts';
 export { startLoadingIndicator } from './loadingIndicator.ts';
 export { openMediaSource } from './openMediaSource.ts';
+export {
+  closeMediaPlayback,
+  requiresVisualTerminal,
+  resolveMediaPlayback,
+  resolvePlaybackRoute,
+} from './resolveMediaPlayback.ts';
 export * from './consts.ts';
 export * from './types.ts';
 
@@ -68,40 +82,6 @@ if (args.action === 'usage-error') {
 if (!process.stdout.isTTY) {
   process.stderr.write(`${UNSUPPORTED_TERMINAL_MESSAGE}\n`);
   process.exit(EXIT_OK);
-}
-
-// --render-mode kitty alone forces the full Ink player past detection.
-// --fallback or a cell --render-mode forces the fallback player, and
-// --fallback --render-mode kitty forces the fallback player with the kitty
-// renderer (full quality, no on-screen UI, for terminals like iTerm2 that
-// have graphics but no placeholders). Plain --fallback probes for the best
-// available mode. This all happens before any Screen or Ink render exists,
-// so the prompt and the graphics probe can read stdin freely.
-const forceKitty = args.renderMode === 'kitty' && !args.fallback;
-let fallback = args.fallback || (args.renderMode !== undefined && !forceKitty);
-let fallbackMode: RenderMode | undefined;
-if (fallback) {
-  fallbackMode = await resolveFallbackRenderMode(args.renderMode);
-} else if (!forceKitty) {
-  const reasons = detectFallbackReasons();
-  if (reasons.length > 0) {
-    // Resolve before prompting because the wording depends on whether
-    // kitty graphics work here without placeholders.
-    fallbackMode = await resolveFallbackRenderMode();
-    const reasonLines = reasons.map((reason) => `  - ${FALLBACK_REASON_MESSAGES[reason]}`);
-    process.stderr.write(`${FALLBACK_WARNING_HEADER}\n${reasonLines.join('\n')}\n`);
-    if (fallbackMode === 'kitty') {
-      process.stderr.write(`${FALLBACK_KITTY_NOTE}\n`);
-    }
-    fallback = await confirmFallback({
-      input: process.stdin,
-      output: process.stderr,
-      prompt: fallbackMode === 'kitty' ? FALLBACK_PROMPT_KITTY : FALLBACK_PROMPT,
-    });
-    if (!fallback) {
-      process.exit(EXIT_OK);
-    }
-  }
 }
 
 // Only file playback has audio. The procedural demo is silent, and a file
@@ -145,20 +125,14 @@ const openAudio = async (): Promise<AudioPlayer | null> => {
 // skips finally blocks.
 const loadingIndicator = args.file === undefined ? null : startLoadingIndicator(args.file);
 
-let source: FrameSource;
-let info: FrameSourceInfo;
-let audio: AudioPlayer | null = null;
+let playback;
 try {
-  if (args.file === undefined || openingProbe === null) {
-    source = createProceduralSource();
-    info = await source.open();
-  } else {
-    const file = args.file;
-    const openingSource = openingProbe.then((probe) => openMediaSource({ filePath: file, probe }));
-    const [opened, openedAudio] = await Promise.all([openingSource, openAudio()]);
-    ({ source, info } = opened);
-    audio = openedAudio;
-  }
+  playback = await resolveMediaPlayback({
+    filePath: args.file,
+    visual: args.visual,
+    probe: openingProbe,
+    audio: openAudio(),
+  });
 } catch (error) {
   loadingIndicator?.stop();
   await audioPlayer?.close().catch(() => undefined);
@@ -169,27 +143,109 @@ try {
 }
 loadingIndicator?.stop();
 
+// Audio-only outcomes do not need terminal graphics. In particular, none
+// and placeholder outcomes skip all graphics detection and Screen creation.
+const route = await resolvePlaybackRoute({
+  playback,
+  fallback: args.fallback,
+  renderMode: args.renderMode,
+  detectReasons: detectFallbackReasons,
+  resolveFallbackMode: resolveFallbackRenderMode,
+});
+
+if (route.kind === 'visual' && route.reasons.length > 0) {
+  const reasonLines = route.reasons.map((reason) => `  - ${FALLBACK_REASON_MESSAGES[reason]}`);
+  process.stderr.write(`${FALLBACK_WARNING_HEADER}\n${reasonLines.join('\n')}\n`);
+  if (route.fallbackMode === 'kitty') {
+    process.stderr.write(`${FALLBACK_KITTY_NOTE}\n`);
+  }
+  const accepted = await confirmFallback({
+    input: process.stdin,
+    output: process.stderr,
+    prompt: route.fallbackMode === 'kitty' ? FALLBACK_PROMPT_KITTY : FALLBACK_PROMPT,
+  });
+  if (!accepted) {
+    await closeMediaPlayback(playback);
+    process.exit(EXIT_OK);
+  }
+}
+
+if (playback.kind === 'audio-only') {
+  if (route.kind === 'audio-only' && route.fallback) {
+    await runFallbackAudioPlayer({
+      audio: playback.audio,
+      durationMs: playback.durationMs,
+      input: process.stdin,
+      output: process.stdout,
+      muted: args.muted,
+      label: playback.label ?? undefined,
+    });
+    process.exit(EXIT_OK);
+  }
+
+  const { audio, durationMs, label } = playback;
+  render(
+    <Box flexDirection="column">
+      <Text bold color="cyan">{PLAYER_TITLE}</Text>
+      <Box marginTop={1}>
+        <AudioPlayerView
+          audio={audio}
+          durationMs={durationMs}
+          resourceStatus="ready"
+          autoPlay
+          loop
+          muted={args.muted}
+          controls
+          keyboard
+          width={label === null ? undefined : DEFAULT_VISUAL_WIDTH}
+          height={label === null ? CONTROLS_ROWS : DEFAULT_VISUAL_HEIGHT}
+          visualStatus={label === null ? 'none' : 'placeholder'}
+          visualSource={null}
+          visualInfo={null}
+          visualScreen={null}
+          visualRows={[]}
+          visualLabel={label}
+          visualRegionRevision={0}
+          onVisualError={() => undefined}
+          onQuit={() => void audio?.close().catch(() => undefined)}
+        />
+      </Box>
+      <Text dimColor>{PLAYER_HELP_TEXT}</Text>
+    </Box>,
+    { exitOnCtrlC: false },
+  );
+} else {
+  const { source, info } = playback;
+  const audio = playback.kind === 'procedural' ? null : playback.audio;
+
 // Fallback mode never touches Ink. The renderer owns the whole screen
 // (kitty at full quality or a cell renderer) and produces no placeholder
 // rows to lay out. The playback loop resolves when the user quits, with
 // the screen disposed and source closed.
-if (fallbackMode !== undefined) {
+if (route.kind === 'visual' && route.fallbackMode !== undefined) {
   // The kitty tier measures the real cell pixel size so the frame keeps its
   // aspect on fonts other than the assumed 9x18. stdin is still free here,
   // and this runs after the graphics probe, never concurrently with another
   // detector. Cell tiers stay probe-free.
-  if (fallbackMode === 'kitty') {
-    await detectCellPixelSize();
+  try {
+    if (route.fallbackMode === 'kitty') {
+      await detectCellPixelSize();
+    }
+    const fallbackScreen = createFallbackScreen(info, route.fallbackMode);
+    await runFallbackPlayer({
+      screen: fallbackScreen,
+      source,
+      info,
+      input: process.stdin,
+      audio,
+      muted: args.muted,
+    });
+  } catch (error) {
+    await closeMediaPlayback(playback);
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`kitty-media-player: ${message}\n`);
+    process.exit(EXIT_USAGE);
   }
-  const fallbackScreen = createFallbackScreen(info, fallbackMode);
-  await runFallbackPlayer({
-    screen: fallbackScreen,
-    source,
-    info,
-    input: process.stdin,
-    audio,
-    muted: args.muted,
-  });
   process.exit(EXIT_OK);
 }
 
@@ -209,7 +265,7 @@ try {
     sourceWidth: info.width,
     sourceHeight: info.height,
     colorSpace: info.colorSpace,
-    renderMode: forceKitty ? 'kitty' : undefined,
+    renderMode: route.kind === 'visual' && route.forceKitty ? 'kitty' : undefined,
     placement: 'unicode',
     embedded: true,
     region,
@@ -218,8 +274,7 @@ try {
   });
 } catch (error) {
   // A failed probe handshake must not strand the decoder processes
-  await source.close().catch(() => undefined);
-  await audio?.close().catch(() => undefined);
+  await closeMediaPlayback(playback);
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`kitty-media-player: ${message}\n`);
   process.exit(EXIT_USAGE);
@@ -243,3 +298,4 @@ render(
   />,
   { exitOnCtrlC: false },
 );
+}

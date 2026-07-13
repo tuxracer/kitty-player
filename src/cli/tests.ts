@@ -9,16 +9,33 @@ import { parseCliArgs } from './parseCliArgs.ts';
 import { detectFallbackReasons } from './detectFallbackReasons.ts';
 import { confirmFallback } from './confirmFallback.ts';
 import { startLoadingIndicator } from './loadingIndicator.ts';
-import { CLEAR_LINE, FALLBACK_PROMPT, RENDER_MODES, SPINNER_INTERVAL_MS } from './consts.ts';
-import { isRenderMode } from './types.ts';
-import type { LoadingIndicatorOutput } from './types.ts';
+import {
+  CLEAR_LINE,
+  FALLBACK_PROMPT,
+  HELP_TEXT,
+  RENDER_MODES,
+  SPINNER_INTERVAL_MS,
+} from './consts.ts';
+import { isAudioVisualMode, isRenderMode } from './types.ts';
+import type { FallbackReason, LoadingIndicatorOutput } from './types.ts';
 import type { FrameSource, FrameSourceInfo } from '../frameSource/index.ts';
 import type { AudioProbeResult, VideoProbeResult } from '../mediaProbe/index.ts';
 import { openMediaSource } from './openMediaSource.ts';
+import {
+  closeMediaPlayback,
+  requiresVisualTerminal,
+  resolveMediaPlayback,
+  resolvePlaybackRoute,
+} from './resolveMediaPlayback.ts';
 
 describe('parseCliArgs', () => {
   it('returns play when no arguments are given', () => {
-    expect(parseCliArgs([])).toEqual({ action: 'play', fallback: false, muted: false });
+    expect(parseCliArgs([])).toEqual({
+      action: 'play',
+      fallback: false,
+      muted: false,
+      visual: 'auto',
+    });
   });
 
   it('returns help for --help', () => {
@@ -43,6 +60,7 @@ describe('parseCliArgs', () => {
       file: 'movie.mp4',
       fallback: false,
       muted: false,
+      visual: 'auto',
     });
   });
 
@@ -52,11 +70,17 @@ describe('parseCliArgs', () => {
       file: 'https://example.com/movie.mp4',
       fallback: false,
       muted: false,
+      visual: 'auto',
     });
   });
 
   it('returns play with fallback for --fallback', () => {
-    expect(parseCliArgs(['--fallback'])).toEqual({ action: 'play', fallback: true, muted: false });
+    expect(parseCliArgs(['--fallback'])).toEqual({
+      action: 'play',
+      fallback: true,
+      muted: false,
+      visual: 'auto',
+    });
   });
 
   it('combines --fallback with a file argument', () => {
@@ -65,6 +89,7 @@ describe('parseCliArgs', () => {
       file: 'movie.mp4',
       fallback: true,
       muted: false,
+      visual: 'auto',
     });
   });
 
@@ -76,16 +101,27 @@ describe('parseCliArgs', () => {
         fallback: false,
         muted: false,
         renderMode: mode,
+        visual: 'auto',
       });
     },
   );
 
   it('parses --muted into the play action', () => {
-    expect(parseCliArgs(['--muted'])).toEqual({ action: 'play', fallback: false, muted: true });
+    expect(parseCliArgs(['--muted'])).toEqual({
+      action: 'play',
+      fallback: false,
+      muted: true,
+      visual: 'auto',
+    });
   });
 
   it('defaults muted to false', () => {
-    expect(parseCliArgs([])).toEqual({ action: 'play', fallback: false, muted: false });
+    expect(parseCliArgs([])).toEqual({
+      action: 'play',
+      fallback: false,
+      muted: false,
+      visual: 'auto',
+    });
   });
 
   it('combines --muted with a file argument', () => {
@@ -94,6 +130,7 @@ describe('parseCliArgs', () => {
       fallback: false,
       muted: true,
       file: 'movie.mp4',
+      visual: 'auto',
     });
   });
 
@@ -112,7 +149,35 @@ describe('parseCliArgs', () => {
       fallback: true,
       muted: false,
       renderMode: 'kitty',
+      visual: 'auto',
     });
+  });
+
+  it.each(['auto', 'artwork', 'waveform', 'none'])('parses --visual %s', (visual) => {
+    expect(parseCliArgs(['--visual', visual, 'song.mp3'])).toEqual({
+      action: 'play',
+      fallback: false,
+      muted: false,
+      visual,
+      file: 'song.mp3',
+    });
+  });
+
+  it('returns usage-error for an invalid --visual value naming every valid mode', () => {
+    const result = parseCliArgs(['--visual', 'bogus']);
+    expect(result.action).toBe('usage-error');
+    if (result.action === 'usage-error') {
+      expect(result.message).toContain('bogus');
+      for (const mode of ['auto', 'artwork', 'waveform', 'none']) {
+        expect(result.message).toContain(mode);
+      }
+    }
+  });
+
+  it('documents the audio-only scope and auto default for --visual', () => {
+    expect(HELP_TEXT).toContain('--visual <mode>');
+    expect(HELP_TEXT).toContain('audio-only');
+    expect(HELP_TEXT).toContain('default: auto');
   });
 
   it('returns usage-error for more than one positional argument', () => {
@@ -152,6 +217,16 @@ describe('isRenderMode', () => {
 
   it.each(['bogus', '', 'KITTY', 42, null, undefined])('rejects %j', (value) => {
     expect(isRenderMode(value)).toBe(false);
+  });
+});
+
+describe('isAudioVisualMode', () => {
+  it.each(['auto', 'artwork', 'waveform', 'none'])('accepts %s', (mode) => {
+    expect(isAudioVisualMode(mode)).toBe(true);
+  });
+
+  it.each(['bogus', '', 'AUTO', 42, null, undefined])('rejects %j', (value) => {
+    expect(isAudioVisualMode(value)).toBe(false);
   });
 });
 
@@ -331,20 +406,6 @@ describe('openMediaSource', () => {
     hasAudio: true,
   };
 
-  const artProbe: AudioProbeResult = {
-    kind: 'audio',
-    durationMs: 2_000,
-    coverArt: { nativeWidth: 64, nativeHeight: 36 },
-    title: null,
-  };
-
-  const bareAudioProbe: AudioProbeResult = {
-    kind: 'audio',
-    durationMs: 2_000,
-    coverArt: null,
-    title: null,
-  };
-
   it('opens the video source for a video probe, passing the probe through', async () => {
     const video = fakeSource(fakeInfo(1));
     let received: unknown;
@@ -355,62 +416,270 @@ describe('openMediaSource', () => {
         received = options.probe;
         return video;
       },
-      createArtSource: () => {
-        throw new Error('art source must not be constructed for video');
-      },
-      createWaveSource: () => {
-        throw new Error('waveform must not be constructed for video');
-      },
     });
     expect(opened.source).toBe(video);
     expect(opened.info.width).toBe(1);
     expect(received).toBe(videoProbe);
   });
+});
 
-  it('opens the cover art source for an audio probe with art', async () => {
-    const art = fakeSource(fakeInfo(2));
-    const opened = await openMediaSource({
-      filePath: 'song.mp3',
-      probe: artProbe,
-      createVideoSource: () => {
-        throw new Error('video source must not be constructed for audio');
-      },
-      createArtSource: () => art,
-      createWaveSource: () => {
-        throw new Error('waveform must not be constructed when art decodes');
-      },
+describe('resolveMediaPlayback', () => {
+  const info: FrameSourceInfo = {
+    width: 64,
+    height: 36,
+    colorSpace: 'rgb24',
+    durationMs: 2_000,
+    fps: 10,
+    hasAudio: true,
+  };
+  const source = (): FrameSource => ({
+    open: () => Promise.resolve(info),
+    getFrameAt: () => Promise.resolve(null),
+    seek: () => Promise.resolve(),
+    close: () => Promise.resolve(),
+  });
+  const audio = {
+    open: () => Promise.resolve({ hasAudio: true }),
+    playFrom: () => undefined,
+    pause: () => undefined,
+    setMuted: () => undefined,
+    isStarting: () => false,
+    getPositionMs: () => null,
+    close: () => Promise.resolve(),
+  };
+  const videoProbe: VideoProbeResult = {
+    kind: 'video',
+    nativeWidth: 64,
+    nativeHeight: 36,
+    durationMs: 2_000,
+    fps: 10,
+    hasAudio: true,
+  };
+  const audioProbe: AudioProbeResult = {
+    kind: 'audio',
+    durationMs: 2_000,
+    coverArt: null,
+    title: 'Track',
+  };
+
+  it('routes a real video through the video source even when visual is none', async () => {
+    const video = source();
+    const openVideo = vi.fn().mockResolvedValue({ source: video, info });
+
+    const playback = await resolveMediaPlayback({
+      filePath: 'movie.mp4',
+      visual: 'none',
+      probe: Promise.resolve(videoProbe),
+      audio: Promise.resolve(audio),
+      openVideo,
     });
-    expect(opened.source).toBe(art);
-    expect(opened.info.width).toBe(2);
+
+    expect(playback).toMatchObject({ kind: 'video', source: video, audio });
+    expect(openVideo).toHaveBeenCalledOnce();
   });
 
-  it('falls back to the waveform when the art fails to decode, closing the art source', async () => {
-    const art = fakeSource(fakeInfo(2), new Error('no art'));
-    const wave = fakeSource(fakeInfo(3));
-    const opened = await openMediaSource({
-      filePath: 'song.mp3',
-      probe: artProbe,
-      createArtSource: () => art,
-      createWaveSource: (options) => {
-        expect(options.durationMs).toBe(2_000);
-        return wave;
-      },
+  it('opens the procedural source without waiting for file resources', async () => {
+    const procedural = source();
+    const createProceduralSource = vi.fn(() => procedural);
+    const playback = await resolveMediaPlayback({
+      visual: 'auto',
+      probe: null,
+      audio: Promise.resolve(null),
+      createProceduralSource,
     });
-    expect(opened.source).toBe(wave);
-    expect(opened.info.width).toBe(3);
-    expect(art.closed).toBe(true);
+    expect(playback).toEqual({ kind: 'procedural', source: procedural, info });
   });
 
-  it('opens the waveform directly for an audio probe without art', async () => {
-    const wave = fakeSource(fakeInfo(3));
-    const opened = await openMediaSource({
+  it.each(['auto', 'artwork', 'waveform'] as const)(
+    'uses shared audio visual selection for %s',
+    async (visual) => {
+      const visualSource = source();
+      const openVisual = vi.fn().mockResolvedValue({
+        kind: 'source',
+        visualKind: visual === 'artwork' ? 'artwork' : 'waveform',
+        source: visualSource,
+        info,
+        label: 'Track',
+      });
+      const playback = await resolveMediaPlayback({
+        filePath: 'song.mp3',
+        visual,
+        probe: Promise.resolve(audioProbe),
+        audio: Promise.resolve(audio),
+        openVisual,
+      });
+      expect(openVisual).toHaveBeenCalledWith({
+        filePath: 'song.mp3',
+        probe: audioProbe,
+        mode: visual,
+      });
+      expect(playback).toMatchObject({ kind: 'audio-visual', source: visualSource, audio });
+    },
+  );
+
+  it('routes an unavailable forced artwork visual to a labeled audio-only player', async () => {
+    const playback = await resolveMediaPlayback({
       filePath: 'song.mp3',
-      probe: bareAudioProbe,
-      createArtSource: () => {
-        throw new Error('art source must not be constructed without art');
-      },
-      createWaveSource: () => wave,
+      visual: 'artwork',
+      probe: Promise.resolve(audioProbe),
+      audio: Promise.resolve(audio),
+      openVisual: () => Promise.resolve({ kind: 'placeholder', label: 'Track' }),
     });
-    expect(opened.source).toBe(wave);
+    expect(playback).toEqual({ kind: 'audio-only', durationMs: 2_000, audio, label: 'Track' });
+  });
+
+  it('routes visual none to an unlabeled audio-only player', async () => {
+    const playback = await resolveMediaPlayback({
+      filePath: 'song.mp3',
+      visual: 'none',
+      probe: Promise.resolve(audioProbe),
+      audio: Promise.resolve(null),
+      openVisual: () => Promise.resolve({ kind: 'none' }),
+    });
+    expect(playback).toEqual({ kind: 'audio-only', durationMs: 2_000, audio: null, label: null });
+  });
+
+  it('passes the one resolved probe to visual selection', async () => {
+    const resolveProbe = vi.fn(() => Promise.resolve(audioProbe));
+    const openVisual = vi.fn().mockResolvedValue({ kind: 'none' });
+    await resolveMediaPlayback({
+      filePath: 'song.mp3',
+      visual: 'none',
+      probe: resolveProbe(),
+      audio: Promise.resolve(null),
+      openVisual,
+    });
+    expect(resolveProbe).toHaveBeenCalledOnce();
+    expect(openVisual).toHaveBeenCalledWith(expect.objectContaining({ probe: audioProbe }));
+  });
+});
+
+describe('resolvePlaybackRoute', () => {
+  const audioOnly = {
+    kind: 'audio-only' as const,
+    durationMs: 2_000,
+    audio: null,
+    label: null,
+  };
+  const visual = {
+    kind: 'video' as const,
+    source: {} as FrameSource,
+    info: {} as FrameSourceInfo,
+    audio: null,
+  };
+
+  it('identifies only visual outcomes as requiring terminal graphics', () => {
+    expect(requiresVisualTerminal(audioOnly)).toBe(false);
+    expect(requiresVisualTerminal(visual)).toBe(true);
+  });
+
+  it('bypasses visual detection and render-mode resolution for audio-only playback', async () => {
+    const detectReasons = vi.fn((): FallbackReason[] => ['no-placeholder-support']);
+    const resolveFallbackMode = vi.fn(() => Promise.resolve('half-block' as const));
+    await expect(
+      resolvePlaybackRoute({
+        playback: audioOnly,
+        fallback: false,
+        detectReasons,
+        resolveFallbackMode,
+      }),
+    ).resolves.toEqual({ kind: 'audio-only', fallback: false });
+    expect(detectReasons).not.toHaveBeenCalled();
+    expect(resolveFallbackMode).not.toHaveBeenCalled();
+  });
+
+  it('routes explicit fallback audio directly without graphics resolution', async () => {
+    const resolveFallbackMode = vi.fn(() => Promise.resolve('half-block' as const));
+    await expect(
+      resolvePlaybackRoute({
+        playback: { ...audioOnly, label: 'Track' },
+        fallback: true,
+        resolveFallbackMode,
+      }),
+    ).resolves.toEqual({ kind: 'audio-only', fallback: true });
+    expect(resolveFallbackMode).not.toHaveBeenCalled();
+  });
+
+  it('retains automatic fallback detection for visual playback', async () => {
+    const detectReasons = vi.fn((): FallbackReason[] => ['no-placeholder-support']);
+    const resolveFallbackMode = vi.fn(() => Promise.resolve('kitty' as const));
+    await expect(
+      resolvePlaybackRoute({
+        playback: visual,
+        fallback: false,
+        detectReasons,
+        resolveFallbackMode,
+      }),
+    ).resolves.toEqual({
+      kind: 'visual',
+      forceKitty: false,
+      fallbackMode: 'kitty',
+      reasons: ['no-placeholder-support'],
+    });
+  });
+
+  it('keeps real video visual when --visual none was used', async () => {
+    const detectReasons = vi.fn(() => []);
+    await expect(
+      resolvePlaybackRoute({ playback: visual, fallback: false, detectReasons }),
+    ).resolves.toEqual({ kind: 'visual', forceKitty: false, reasons: [] });
+    expect(detectReasons).toHaveBeenCalledOnce();
+  });
+
+  it('closes every prepared resource when playback is abandoned', async () => {
+    const closeSource = vi.fn(() => Promise.resolve());
+    const closeAudio = vi.fn(() => Promise.resolve());
+    await closeMediaPlayback({
+      ...visual,
+      source: {
+        open: () => Promise.resolve(visual.info),
+        getFrameAt: () => Promise.resolve(null),
+        seek: () => Promise.resolve(),
+        close: closeSource,
+      },
+      audio: {
+        open: () => Promise.resolve({ hasAudio: true }),
+        playFrom: () => undefined,
+        pause: () => undefined,
+        setMuted: () => undefined,
+        isStarting: () => false,
+        getPositionMs: () => null,
+        close: closeAudio,
+      },
+    });
+    expect(closeSource).toHaveBeenCalledOnce();
+    expect(closeAudio).toHaveBeenCalledOnce();
+  });
+
+  it('closes prepared resources when fallback mode resolution fails', async () => {
+    const closeSource = vi.fn(() => Promise.resolve());
+    const closeAudio = vi.fn(() => Promise.resolve());
+    const playback = {
+      ...visual,
+      source: {
+        open: () => Promise.resolve(visual.info),
+        getFrameAt: () => Promise.resolve(null),
+        seek: () => Promise.resolve(),
+        close: closeSource,
+      },
+      audio: {
+        open: () => Promise.resolve({ hasAudio: true }),
+        playFrom: () => undefined,
+        pause: () => undefined,
+        setMuted: () => undefined,
+        isStarting: () => false,
+        getPositionMs: () => null,
+        close: closeAudio,
+      },
+    };
+    await expect(
+      resolvePlaybackRoute({
+        playback,
+        fallback: true,
+        resolveFallbackMode: () => Promise.reject(new Error('probe failed')),
+      }),
+    ).rejects.toThrow('probe failed');
+    expect(closeSource).toHaveBeenCalledOnce();
+    expect(closeAudio).toHaveBeenCalledOnce();
   });
 });

@@ -1,7 +1,7 @@
 import { parseArgs } from 'node:util';
 
-import { RENDER_MODES } from './consts.ts';
-import { isRenderMode } from './types.ts';
+import { AUDIO_VISUAL_MODES, RENDER_MODES } from './consts.ts';
+import { isAudioVisualMode, isRenderMode } from './types.ts';
 import type { ParsedCliArgs, PlayAction } from './types.ts';
 
 /**
@@ -28,6 +28,7 @@ export const parseCliArgs = (argv: string[]): ParsedCliArgs => {
         version: { type: 'boolean', short: 'v' },
         fallback: { type: 'boolean' },
         muted: { type: 'boolean' },
+        visual: { type: 'string' },
         'render-mode': { type: 'string' },
       },
     });
@@ -44,6 +45,13 @@ export const parseCliArgs = (argv: string[]): ParsedCliArgs => {
         message: `invalid --render-mode "${renderModeValue}" (valid modes: ${RENDER_MODES.join(', ')})`,
       };
     }
+    const visualValue = values.visual;
+    if (visualValue !== undefined && !isAudioVisualMode(visualValue)) {
+      return {
+        action: 'usage-error',
+        message: `invalid --visual "${visualValue}" (valid modes: ${AUDIO_VISUAL_MODES.join(', ')})`,
+      };
+    }
     if (positionals.length > 1) {
       return {
         action: 'usage-error',
@@ -54,6 +62,7 @@ export const parseCliArgs = (argv: string[]): ParsedCliArgs => {
       action: 'play',
       fallback: values.fallback === true,
       muted: values.muted === true,
+      visual: visualValue ?? 'auto',
     };
     if (positionals.length === 1) {
       play.file = positionals[0];

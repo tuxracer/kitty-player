@@ -1,10 +1,14 @@
 import type { RenderMode } from 'kitty-motion';
-import type { CoverArtSourceOptions } from '../coverArtSource/index.ts';
+import type { AudioPlayer } from '../audioPlayer/index.ts';
+import type {
+  AudioVisualMode,
+  AudioVisualSelection,
+  OpenAudioVisualOptions,
+} from '../audioVisual/index.ts';
 import type { FfmpegSourceOptions } from '../ffmpegSource/index.ts';
 import type { FrameSource, FrameSourceInfo } from '../frameSource/index.ts';
 import type { MediaProbeResult } from '../mediaProbe/index.ts';
-import type { WaveformSourceOptions } from '../waveformSource/index.ts';
-import { RENDER_MODES } from './consts.ts';
+import { AUDIO_VISUAL_MODES, RENDER_MODES } from './consts.ts';
 
 /** Play a video file, or the built-in procedural demo when file is absent */
 export interface PlayAction {
@@ -17,11 +21,17 @@ export interface PlayAction {
   renderMode?: RenderMode;
   /** Start playback with audio muted (--muted) */
   muted: boolean;
+  /** Visual used for audio-only files (--visual) */
+  visual: AudioVisualMode;
 }
 
 /** True when value is one of kitty-motion's render mode names */
 export const isRenderMode = (value: unknown): value is RenderMode =>
   typeof value === 'string' && RENDER_MODES.includes(value as RenderMode);
+
+/** True when value is one of the audio-only visual mode names */
+export const isAudioVisualMode = (value: unknown): value is AudioVisualMode =>
+  typeof value === 'string' && AUDIO_VISUAL_MODES.includes(value as AudioVisualMode);
 
 /** Print HELP_TEXT to stdout and exit 0 (--help / -h) */
 export interface HelpAction {
@@ -76,10 +86,6 @@ export interface OpenMediaSourceOptions {
   probe: MediaProbeResult;
   /** Injectable factory for video files (createFfmpegSource in production) */
   createVideoSource?: (options: FfmpegSourceOptions) => FrameSource;
-  /** Injectable factory for audio files with embedded art (createCoverArtSource in production) */
-  createArtSource?: (options: CoverArtSourceOptions) => FrameSource;
-  /** Injectable factory for audio files without art (createWaveformSource in production) */
-  createWaveSource?: (options: WaveformSourceOptions) => FrameSource;
 }
 
 export interface OpenedMediaSource {
@@ -87,4 +93,40 @@ export interface OpenedMediaSource {
   source: FrameSource;
   /** The stream info its open() resolved */
   info: FrameSourceInfo;
+}
+
+export type CliMediaPlayback =
+  | { kind: 'procedural'; source: FrameSource; info: FrameSourceInfo }
+  | { kind: 'video'; source: FrameSource; info: FrameSourceInfo; audio: AudioPlayer | null }
+  | { kind: 'audio-visual'; source: FrameSource; info: FrameSourceInfo; audio: AudioPlayer | null }
+  | { kind: 'audio-only'; durationMs: number; audio: AudioPlayer | null; label: string | null };
+
+export interface ResolveMediaPlaybackOptions {
+  /** Undefined selects the built-in procedural source */
+  filePath?: string;
+  visual: AudioVisualMode;
+  /** Existing classification promise. Null is used for procedural playback. */
+  probe: Promise<MediaProbeResult> | null;
+  /** Existing fail-to-silent opened audio promise */
+  audio: Promise<AudioPlayer | null>;
+  createProceduralSource?: () => FrameSource;
+  openVideo?: (options: OpenMediaSourceOptions) => Promise<OpenedMediaSource>;
+  openVisual?: (options: OpenAudioVisualOptions) => Promise<AudioVisualSelection>;
+}
+
+export type CliPlaybackRoute =
+  | { kind: 'audio-only'; fallback: boolean }
+  | {
+      kind: 'visual';
+      forceKitty: boolean;
+      fallbackMode?: RenderMode;
+      reasons: FallbackReason[];
+    };
+
+export interface ResolvePlaybackRouteOptions {
+  playback: CliMediaPlayback;
+  fallback: boolean;
+  renderMode?: RenderMode;
+  detectReasons?: () => FallbackReason[];
+  resolveFallbackMode?: (forcedMode?: RenderMode) => Promise<RenderMode>;
 }
