@@ -3,7 +3,6 @@ import { basename } from 'node:path';
 import { createCoverArtSource } from '../coverArtSource/index.ts';
 import type { FrameSource } from '../frameSource/index.ts';
 import { createWaveformSource } from '../waveformSource/index.ts';
-import { DEFAULT_AUDIO_PLACEHOLDER_LABEL } from './consts.ts';
 import type {
   AudioVisualMode,
   AudioVisualProp,
@@ -32,12 +31,12 @@ export const resolveAudioPlaceholderLabel = (filePath: string, title: string | n
   let fileName: string;
   try {
     const url = new URL(filePath);
-    fileName = basename(url.pathname) || url.hostname;
+    fileName = url.pathname.endsWith('/') ? '' : basename(url.pathname);
   } catch {
-    fileName = basename(filePath);
+    fileName = filePath.endsWith('/') ? '' : basename(filePath);
   }
   if (fileName === '') {
-    return DEFAULT_AUDIO_PLACEHOLDER_LABEL;
+    return filePath;
   }
   try {
     return decodeURIComponent(fileName);
@@ -47,15 +46,23 @@ export const resolveAudioPlaceholderLabel = (filePath: string, title: string | n
 };
 
 const openSource = async (
-  source: FrameSource,
+  createSource: () => FrameSource,
   visualKind: 'artwork' | 'waveform',
   label: string,
 ): Promise<AudioVisualSelection | null> => {
+  let source: FrameSource | null = null;
   try {
+    source = createSource();
     const info = await source.open();
     return { kind: 'source', visualKind, source, info, label };
   } catch {
-    await source.close();
+    if (source !== null) {
+      try {
+        await source.close();
+      } catch {
+        // Visual cleanup cannot abort audio playback.
+      }
+    }
     return null;
   }
 };
@@ -72,34 +79,36 @@ export const openAudioVisual = async (
   const placeholder: AudioVisualSelection = { kind: 'placeholder', label };
 
   if (mode === 'artwork') {
-    if (probe.coverArt === null) {
+    const coverArt = probe.coverArt;
+    if (coverArt === null) {
       return placeholder;
     }
-    const source = (options.createArtSource ?? createCoverArtSource)({
+    const createArtSource = options.createArtSource ?? createCoverArtSource;
+    return await openSource(() => createArtSource({
       filePath,
       durationMs: probe.durationMs,
-      nativeWidth: probe.coverArt.nativeWidth,
-      nativeHeight: probe.coverArt.nativeHeight,
-    });
-    return await openSource(source, 'artwork', label) ?? placeholder;
+      nativeWidth: coverArt.nativeWidth,
+      nativeHeight: coverArt.nativeHeight,
+    }), 'artwork', label) ?? placeholder;
   }
 
   if (mode === 'auto' && probe.coverArt !== null) {
-    const source = (options.createArtSource ?? createCoverArtSource)({
+    const coverArt = probe.coverArt;
+    const createArtSource = options.createArtSource ?? createCoverArtSource;
+    const artwork = await openSource(() => createArtSource({
       filePath,
       durationMs: probe.durationMs,
-      nativeWidth: probe.coverArt.nativeWidth,
-      nativeHeight: probe.coverArt.nativeHeight,
-    });
-    const artwork = await openSource(source, 'artwork', label);
+      nativeWidth: coverArt.nativeWidth,
+      nativeHeight: coverArt.nativeHeight,
+    }), 'artwork', label);
     if (artwork !== null) {
       return artwork;
     }
   }
 
-  const source = (options.createWaveSource ?? createWaveformSource)({
+  const createWaveSource = options.createWaveSource ?? createWaveformSource;
+  return await openSource(() => createWaveSource({
     filePath,
     durationMs: probe.durationMs,
-  });
-  return await openSource(source, 'waveform', label) ?? placeholder;
+  }), 'waveform', label) ?? placeholder;
 };
