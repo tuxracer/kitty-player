@@ -4,7 +4,7 @@ import type { AudioProbeResult } from '../mediaProbe/index.ts';
 import type { WaveformSourceOptions } from '../waveformSource/index.ts';
 
 export type AudioVisualMode = 'auto' | 'artwork' | 'waveform' | 'none';
-export type AudioVisualProp = boolean | 'artwork' | 'waveform';
+export type AudioVisualProp = boolean | 'artwork' | 'waveform' | undefined;
 
 export type AudioVisualSelection =
   | { kind: 'none' }

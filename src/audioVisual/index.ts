@@ -14,7 +14,7 @@ import type {
 export * from './consts.ts';
 export * from './types.ts';
 
-export const normalizeAudioVisual = (visual: AudioVisualProp): AudioVisualMode => {
+export const normalizeAudioVisual = (visual: AudioVisualProp = false): AudioVisualMode => {
   if (visual === false) {
     return 'none';
   }

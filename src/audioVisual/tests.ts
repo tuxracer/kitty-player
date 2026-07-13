@@ -46,6 +46,7 @@ const fakeSource = (openError?: Error): { source: FrameSource; close: ReturnType
 
 describe('normalizeAudioVisual', () => {
   it('maps boolean props and preserves explicit visual modes', () => {
+    expect(normalizeAudioVisual()).toBe('none');
     expect(normalizeAudioVisual(false)).toBe('none');
     expect(normalizeAudioVisual(true)).toBe('auto');
     expect(normalizeAudioVisual('artwork')).toBe('artwork');
@@ -72,10 +73,36 @@ describe('resolveAudioPlaceholderLabel', () => {
 
   it('keeps an undecodable basename instead of throwing', () => {
     expect(resolveAudioPlaceholderLabel('/music/track%ZZ.mp3', null)).toBe('track%ZZ.mp3');
+    expect(resolveAudioPlaceholderLabel(
+      'https://example.test/music/track%ZZ.mp3?x=1',
+      null,
+    )).toBe('track%ZZ.mp3');
   });
 });
 
 describe('openAudioVisual', () => {
+  it('opens artwork in explicit artwork mode', async () => {
+    const art = fakeSource();
+
+    await expect(openAudioVisual({
+      filePath: '/music/song.mp3',
+      probe: WITH_ART,
+      mode: 'artwork',
+      createArtSource: () => art.source,
+    })).resolves.toMatchObject({ kind: 'source', visualKind: 'artwork', source: art.source });
+  });
+
+  it('opens a waveform in explicit waveform mode', async () => {
+    const wave = fakeSource();
+
+    await expect(openAudioVisual({
+      filePath: '/music/song.mp3',
+      probe: WITHOUT_ART,
+      mode: 'waveform',
+      createWaveSource: () => wave.source,
+    })).resolves.toMatchObject({ kind: 'source', visualKind: 'waveform', source: wave.source });
+  });
+
   it('opens artwork in auto mode when the supplied probe has cover art', async () => {
     const art = fakeSource();
     const waveFactory = vi.fn(() => fakeSource().source);
@@ -158,6 +185,55 @@ describe('openAudioVisual', () => {
     })).resolves.toEqual({ kind: 'placeholder', label: 'Song title' });
     expect(explicitArt.close).toHaveBeenCalledOnce();
     expect(explicitWaveFactory).not.toHaveBeenCalled();
+  });
+
+  it('waits for failed artwork cleanup before constructing the waveform', async () => {
+    const events: string[] = [];
+    let resolveClose = (): void => undefined;
+    const closeDone = new Promise<void>((resolve) => {
+      resolveClose = resolve;
+    });
+    const art = fakeSource(new Error('bad artwork'));
+    art.source.close = vi.fn(() => {
+      events.push('artwork close');
+      return closeDone;
+    });
+    const wave = fakeSource();
+    const waveFactory = vi.fn(() => {
+      events.push('waveform construct');
+      return wave.source;
+    });
+
+    const selection = openAudioVisual({
+      filePath: '/music/song.mp3',
+      probe: WITH_ART,
+      mode: 'auto',
+      createArtSource: () => art.source,
+      createWaveSource: waveFactory,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(events).toEqual(['artwork close']);
+    expect(waveFactory).not.toHaveBeenCalled();
+
+    resolveClose();
+    await expect(selection).resolves.toMatchObject({ kind: 'source', visualKind: 'waveform' });
+    expect(events).toEqual(['artwork close', 'waveform construct']);
+  });
+
+  it('returns a placeholder after closing failed artwork and waveform sources', async () => {
+    const art = fakeSource(new Error('bad artwork'));
+    const wave = fakeSource(new Error('bad waveform'));
+
+    await expect(openAudioVisual({
+      filePath: '/music/song.mp3',
+      probe: WITH_ART,
+      mode: 'auto',
+      createArtSource: () => art.source,
+      createWaveSource: () => wave.source,
+    })).resolves.toEqual({ kind: 'placeholder', label: 'Song title' });
+    expect(art.close).toHaveBeenCalledOnce();
+    expect(wave.close).toHaveBeenCalledOnce();
   });
 
   it('closes a failed waveform and returns a placeholder', async () => {

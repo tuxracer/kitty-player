@@ -1,12 +1,13 @@
 import { execFile } from 'node:child_process';
 import { createServer } from 'node:http';
 import type { Server } from 'node:http';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
 
 import ffmpegPath from 'ffmpeg-static';
+import ffprobeStatic from 'ffprobe-static';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { MediaProbeError, isMediaProbeError, probeMediaFile } from './index.ts';
@@ -30,7 +31,9 @@ let toneMp3: string;
 let toneOgg: string;
 let streamTitleAudio: string;
 let formatTitleAudio: string;
+let trimmedTitleAudio: string;
 let emptyTitleAudio: string;
+let nonStringTitleProbe: string;
 let artMp3: string;
 let noDurationAudio: string;
 let subsOnly: string;
@@ -51,7 +54,9 @@ beforeAll(async () => {
   toneOgg = join(fixtureDir, 'tone.ogg');
   streamTitleAudio = join(fixtureDir, 'stream-title.mka');
   formatTitleAudio = join(fixtureDir, 'format-title.mka');
+  trimmedTitleAudio = join(fixtureDir, 'trimmed-title.mka');
   emptyTitleAudio = join(fixtureDir, 'empty-title.mka');
+  nonStringTitleProbe = join(fixtureDir, 'ffprobe-non-string-title');
   artMp3 = join(fixtureDir, 'art.mp3');
   noDurationAudio = join(fixtureDir, 'no-duration-audio.mka');
   subsOnly = join(fixtureDir, 'subs-only.mkv');
@@ -95,6 +100,10 @@ beforeAll(async () => {
   ]);
   await execFileAsync(ffmpegPath, [
     '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
+    '-metadata', 'title=  Trimmed title  ', '-c:a', 'pcm_s16le', trimmedTitleAudio,
+  ]);
+  await execFileAsync(ffmpegPath, [
+    '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
     '-metadata', 'title=   ', '-c:a', 'pcm_s16le', emptyTitleAudio,
   ]);
   const coverPng = join(fixtureDir, 'cover.png');
@@ -114,6 +123,11 @@ beforeAll(async () => {
   await writeFile(subsSrt, '1\n00:00:00,000 --> 00:00:01,000\nhello\n');
   await execFileAsync(ffmpegPath, ['-i', subsSrt, '-c:s', 'srt', subsOnly]);
   await writeFile(notMedia, 'this is not a media file\n');
+  await writeFile(
+    nonStringTitleProbe,
+    '#!/usr/bin/env node\nprocess.stdout.write(JSON.stringify({ streams: [{ codec_type: "audio", duration: "1", tags: { title: 42 } }], format: {} }));\n',
+  );
+  await chmod(nonStringTitleProbe, 0o755);
 }, FIXTURE_TIMEOUT_MS);
 
 afterAll(async () => {
@@ -217,6 +231,23 @@ describe('probeMediaFile on audio files', () => {
       kind: 'audio',
       title: 'Format title',
     });
+  });
+
+  it('trims valid title metadata', async () => {
+    expect(await probeMediaFile(trimmedTitleAudio)).toMatchObject({
+      kind: 'audio',
+      title: 'Trimmed title',
+    });
+  });
+
+  it('ignores non-string title metadata', async () => {
+    const originalPath = ffprobeStatic.path;
+    Object.defineProperty(ffprobeStatic, 'path', { configurable: true, value: nonStringTitleProbe });
+    try {
+      expect(await probeMediaFile(toneMp3)).toMatchObject({ kind: 'audio', title: null });
+    } finally {
+      Object.defineProperty(ffprobeStatic, 'path', { configurable: true, value: originalPath });
+    }
   });
 
   it('reports null when title metadata is empty or absent', async () => {
